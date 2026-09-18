@@ -127,10 +127,10 @@ func _build_roads() -> void:
 			var sb := StaticBody3D.new()
 			var cs := CollisionShape3D.new()
 			var bs := BoxShape3D.new()
-			bs.size = Vector3(inner, 0.55, inner)
+			bs.size = Vector3(inner, 0.25, inner)
 			cs.shape = bs
 			sb.add_child(cs)
-			sb.position = Vector3(cx, 0.27, cz)
+			sb.position = Vector3(cx, 0.12, cz)
 			roads.add_child(sb)
 
 func _build_blocks() -> void:

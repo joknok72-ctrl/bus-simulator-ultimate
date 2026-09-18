@@ -510,7 +510,10 @@ func _build_autopilot_waypoints() -> void:
 		if stops_by_seg.has(seg):
 			var idx: int = stops_by_seg[seg]
 			var stop := stops[idx]
-			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -5.0, "stop": idx, "slow": true})
+			var sright := stop.global_transform.basis.x * -5.2   # موضع الحارة أمام المحطة
+			var sfwd := -stop.global_transform.basis.z          # اتجاه الحركة
+			_auto_wps.append({"pos": stop.global_position + sright - sfwd * 18.0, "stop": -1, "slow": true})
+			_auto_wps.append({"pos": stop.global_position + sright, "stop": idx, "slow": true})
 		# قبل التقاطع التالي
 		_auto_wps.append({"pos": b - dir * 16.0 + right * lane, "stop": -1, "slow": true})
 		if seg + 2 < path.size():
@@ -522,7 +525,9 @@ func _build_autopilot_waypoints() -> void:
 				# انعطاف: نقطة الذروة داخل التقاطع
 				if turn < 0.0:
 					# يمين (ضيق): نقطة قرب الزاوية
-					_auto_wps.append({"pos": b + right * lane * 0.9 + dir2 * lane * 0.9 - dir * 2.0, "stop": -1, "slow": true})
+					# ادخل لمركز التقاطع قليلاً ثم انعطف (قوس أوسع للباص الطويل)
+					_auto_wps.append({"pos": b - dir * 1.0 + right * lane * 0.2, "stop": -1, "slow": true})
+					_auto_wps.append({"pos": b + dir2 * 6.0 + right2 * lane, "stop": -1, "slow": true})
 				else:
 					# يسار (واسع): تجاوز المركز ثم ادخل الحارة
 					_auto_wps.append({"pos": b + dir * 3.0 + right * lane * 0.3, "stop": -1, "slow": true})
@@ -571,24 +576,24 @@ func _autopilot_drive(delta: float) -> void:
 			_auto_i += 1
 		return
 	# تعافٍ من الانحشار: لو الباص متوقف والهدف بعيد، ارجع للخلف قليلاً
-	if bus.speed_kmh < 0.5 and dist > 4.0 and _auto_wait <= 0.0:
+	if bus.speed_kmh < 0.5 and dist > (6.0 if is_stop else 4.0) and _auto_wait <= 0.0:
 		_stuck_t += delta
 	else:
 		_stuck_t = 0.0
 	if _stuck_t > 2.0 or _reverse_t > 0.0:
 		if _reverse_t <= 0.0:
-			_reverse_t = 2.0
+			_reverse_t = 1.6
 			_stuck_t = 0.0
 		_reverse_t -= delta
 		bus.throttle_input = 0.0
 		bus.brake_input = 1.0   # عند التوقف = رجوع للخلف
-		bus.steer_input = -steer
+		bus.steer_input = 0.0   # رجوع مستقيم ثم إعادة المحاولة
 		return
 	var target_speed := 26.0
 	if bool(wp.get("slow", false)) and dist < 24.0:
-		target_speed = 12.0
-	if absf(steer) > 0.5:
-		target_speed = 9.0
+		target_speed = 11.0
+	if absf(steer) > 0.4:
+		target_speed = 7.0
 	if is_stop:
 		target_speed = clampf(dist * 2.5, 4.0, 22.0)
 	if dist < (2.5 if is_stop else 4.5):
