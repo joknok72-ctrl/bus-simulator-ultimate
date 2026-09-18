@@ -458,6 +458,15 @@ func show_pause() -> void:
 		start_driving(GameState.selected_route)
 	)
 	vb.add_child(restart)
+	var reset := _button("🛣 إعادة الباص للطريق (-٢٠ ج)", Color(0.85, 0.55, 0.2), 22)
+	reset.pressed.connect(func():
+		get_tree().paused = false
+		state = State.DRIVING
+		_clear_screen()
+		if driving:
+			driving.reset_bus_to_road()
+	)
+	vb.add_child(reset)
 	var settings := _button("⚙️ الإعدادات", Color(0.3, 0.33, 0.42), 24)
 	settings.pressed.connect(func(): show_settings(true))
 	vb.add_child(settings)

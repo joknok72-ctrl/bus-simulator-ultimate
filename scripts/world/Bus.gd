@@ -121,8 +121,8 @@ func _build_body() -> void:
 	_box(Vector3(W * 0.7, 0.3, 0.05), Vector3(0, H - 0.45, L * 0.5 + 0.03), _make_sign_mat(), _body_mesh)
 	# الأبواب (الجهة اليمنى +X) — بابان
 	var door_mat := _flat(col.darkened(0.15), 0.4)
-	_door_left = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(W * 0.5 + 0.02, floor_y + body_h * 0.45, L * 0.5 - 1.4), door_mat, _body_mesh)
-	_door_left2 = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(W * 0.5 + 0.02, floor_y + body_h * 0.45, -L * 0.15), door_mat, _body_mesh)
+	_door_left = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(-(W * 0.5 + 0.02), floor_y + body_h * 0.45, L * 0.5 - 1.4), door_mat, _body_mesh)
+	_door_left2 = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(-(W * 0.5 + 0.02), floor_y + body_h * 0.45, -L * 0.15), door_mat, _body_mesh)
 	# المصابيح الأمامية
 	var lamp := _flat(Color(1, 0.98, 0.85), 0.2)
 	lamp.emission_enabled = true
@@ -230,7 +230,7 @@ func _physics_process(delta: float) -> void:
 	var sens: float = float(GameState.settings.get("steer_sensitivity", 1.0))
 	var target_steer := steer_input * _steer_max * speed_factor * sens
 	_steer_current = move_toward(_steer_current, target_steer, delta * 3.5)
-	steering = _steer_current
+	steering = -_steer_current  # موجب = يمين (لأن +X المحلي هو اليسار مع الأمام +Z)
 	# ---- القوة: لا يتجاوز السرعة القصوى + تراجع عند الفرملة والباص متوقف
 	var doors_block := doors_open
 	var eff_throttle := 0.0 if doors_block else throttle_input
@@ -303,10 +303,10 @@ func _physics_process(delta: float) -> void:
 	_door_anim = move_toward(_door_anim, _door_target, delta * 2.5)
 	if _door_left:
 		var W: float = data["width"]
-		_door_left.position.x = W * 0.5 + 0.02 + _door_anim * 0.35
-		_door_left.rotation.y = _door_anim * 0.9
-		_door_left2.position.x = W * 0.5 + 0.02 + _door_anim * 0.35
-		_door_left2.rotation.y = _door_anim * 0.9
+		_door_left.position.x = -(W * 0.5 + 0.02 + _door_anim * 0.35)
+		_door_left.rotation.y = -_door_anim * 0.9
+		_door_left2.position.x = -(W * 0.5 + 0.02 + _door_anim * 0.35)
+		_door_left2.rotation.y = -_door_anim * 0.9
 	# ---- صوت المحرك
 	var rpm_ratio := clampf(forward_speed / _max_speed_ms, 0.0, 1.0)
 	AudioFX.engine_update(rpm_ratio, eff_throttle)
@@ -355,4 +355,4 @@ func door_position() -> Vector3:
 	## موقع الباب الأمامي (الجهة اليمنى)
 	var L: float = data["length"]
 	var W: float = data["width"]
-	return global_position + global_transform.basis.x * (W * 0.5) + global_transform.basis.z * (L * 0.5 - 1.4)
+	return global_position - global_transform.basis.x * (W * 0.5) + global_transform.basis.z * (L * 0.5 - 1.4)

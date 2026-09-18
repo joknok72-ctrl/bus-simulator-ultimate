@@ -82,7 +82,7 @@ func _build(night: bool) -> void:
 	_marker_mat.emission = Color(1.0, 0.7, 0.1)
 	_marker_mat.emission_energy_multiplier = 0.6
 	_marker_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_marker = _box(Vector3(_zone_w, 0.04, _zone_len), Vector3(-3.2, 0.09, 0), _marker_mat)
+	_marker = _box(Vector3(_zone_w, 0.04, _zone_len), Vector3(-5.0, 0.09, 0), _marker_mat)
 	_marker.visible = false
 	# سهم عائم يشير للمحطة التالية
 	_arrow = MeshInstance3D.new()
@@ -96,7 +96,7 @@ func _build(night: bool) -> void:
 	am.emission_energy_multiplier = 1.5
 	am.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_arrow.material_override = am
-	_arrow.position = Vector3(-3.2, 6.5, 0)
+	_arrow.position = Vector3(-5.0, 6.5, 0)
 	_arrow.rotation_degrees = Vector3(180, 0, 0)
 	_arrow.visible = false
 	add_child(_arrow)
@@ -116,7 +116,7 @@ func _build(night: bool) -> void:
 	var bs := BoxShape3D.new()
 	bs.size = Vector3(_zone_w + 3.0, 4.0, _zone_len + 6.0)
 	cs.shape = bs
-	cs.position = Vector3(-3.2, 2.0, 0)
+	cs.position = Vector3(-4.0, 2.0, 0)
 	area.add_child(cs)
 	area.body_entered.connect(_on_area_entered)
 	area.body_exited.connect(_on_area_exited)
@@ -168,7 +168,8 @@ func evaluate_parking(bus: Bus) -> Dictionary:
 	var door_world := bus.door_position()
 	var local := to_local(door_world)
 	# الباب يجب أن يكون قريباً من الرصيف (x ≈ -1.0) وداخل طول المنطقة
-	var lateral := absf(local.x - (-2.0))
+	# الوضع المثالي: الباص في منتصف الحارة (local x = -5.0) فيكون بابه على بُعد ~1.1م ← local x ≈ -3.9
+	var lateral := absf(local.x - (-3.9))
 	var longitudinal := absf(local.z)
 	# اتجاه الباص (+Z) يجب أن يوازي اتجاه المحطة (-Z المحلي = اتجاه الحركة)
 	var bus_fwd := bus.global_transform.basis.z

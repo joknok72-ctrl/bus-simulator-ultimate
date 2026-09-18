@@ -223,7 +223,7 @@ func _update_camera(delta: float, snap := false) -> void:
 			target_pos = bus.global_position - flat_fwd * (L * 0.5 + 3.0) + Vector3(0, H + 7.0, 0)
 			look_at = bus.global_position + flat_fwd * 2.0
 		_:  # داخلية
-			target_pos = bus.global_position + flat_fwd * (L * 0.5 - 1.2) + Vector3(0, H - 0.6, 0) - bus.global_transform.basis.x * 0.6
+			target_pos = bus.global_position + flat_fwd * (L * 0.5 - 1.2) + Vector3(0, H - 0.6, 0) + bus.global_transform.basis.x * 0.6
 			look_at = target_pos + fwd * 10.0 + Vector3(0, -0.5, 0)
 	if snap:
 		camera.global_position = target_pos
@@ -465,6 +465,19 @@ func _finish_route() -> void:
 	hud.show_big("اكتمل الخط! 🎉", Color(0.4, 1.0, 0.6), 2.0)
 	get_tree().create_timer(1.8).timeout.connect(func(): route_finished.emit(result))
 
+## يعيد الباص إلى الحارة اليمنى قرب المحطة القادمة (للانحشار)
+func reset_bus_to_road() -> void:
+	var idx: int = mini(next_stop_idx, stops.size() - 1)
+	var st: Dictionary = route["stops"][idx]
+	var p := RouteData.point_on_segment(route, int(st["seg"]), maxf(float(st["t"]) - 0.3, 0.05))
+	var dir: Vector3 = p["dir"]
+	var right := Vector3(-dir.z, 0, dir.x)
+	bus.reset_to(p["pos"] + right * CityBuilder.LANE_OFFSET, dir)
+	if bus.doors_open:
+		bus.toggle_doors()
+	_fine(20, "إعادة للطريق -٢٠")
+	_auto_wps.clear()
+
 func cleanup() -> void:
 	AudioFX.engine_stop()
 	AudioFX.ambience_stop()
@@ -495,7 +508,7 @@ func _build_autopilot_waypoints() -> void:
 		if stops_by_seg.has(seg):
 			var idx: int = stops_by_seg[seg]
 			var stop := stops[idx]
-			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -3.2, "stop": idx, "slow": true})
+			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -5.0, "stop": idx, "slow": true})
 		# قبل التقاطع التالي
 		_auto_wps.append({"pos": b - dir * 16.0 + right * lane, "stop": -1, "slow": true})
 		if seg + 2 < path.size():
@@ -536,7 +549,7 @@ func _autopilot_drive(delta: float) -> void:
 	to.y = 0
 	var dist := to.length()
 	var fwd := bus.global_transform.basis.z
-	var right := bus.global_transform.basis.x
+	var right := -bus.global_transform.basis.x
 	var ahead := to.normalized().dot(fwd)
 	var steer := clampf(to.normalized().dot(right) * 2.5, -1.0, 1.0)
 	if ahead < 0.0:
