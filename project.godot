@@ -1,0 +1,56 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Bus Simulator Ultimate"
+config/description="محاكي باص للموبايل — Low-poly bus driving simulator built with Godot 4.7.2"
+config/version="1.0.0"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
+boot_splash/bg_color=Color(0.09, 0.11, 0.17, 1)
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/autoload/GameState.gd"
+AudioFX="*res://scripts/autoload/AudioFX.gd"
+Haptics="*res://scripts/autoload/Haptics.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/window_width_override=360
+window/size/window_height_override=640
+window/handheld/orientation=1
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+pointing/emulate_mouse_from_touch=true
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=1
+lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
+lights_and_shadows/directional_shadow/size.mobile=1024
+environment/defaults/default_clear_color=Color(0.53, 0.75, 0.92, 1)
