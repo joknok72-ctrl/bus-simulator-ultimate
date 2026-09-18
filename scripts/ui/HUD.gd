@@ -284,6 +284,6 @@ func _draw_minimap() -> void:
 		minimap.draw_circle(_mm_map(_mm_stops[i]), 5.0 if i == _mm_next else 3.5, col)
 	# الباص
 	var bp := _mm_map(_mm_bus)
-	var d := Vector2(sin(_mm_bus_rot), cos(_mm_bus_rot)) * -1.0
+	var d := Vector2(sin(_mm_bus_rot), cos(_mm_bus_rot))
 	var pts := PackedVector2Array([bp + d * 8.0, bp + d.rotated(2.5) * 6.0, bp + d.rotated(-2.5) * 6.0])
 	minimap.draw_colored_polygon(pts, Color(0.3, 0.7, 1.0))

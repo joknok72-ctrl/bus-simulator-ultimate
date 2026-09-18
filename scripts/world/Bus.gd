@@ -109,30 +109,30 @@ func _build_body() -> void:
 	_box(Vector3(W - 0.15, 0.25, L - 0.2), Vector3(0, H - 0.125, 0), white, _body_mesh)
 	# شريط النوافذ الجانبية
 	var win_y := floor_y + body_h * 0.62
-	_box(Vector3(W + 0.04, body_h * 0.42, L * 0.82), Vector3(0, win_y, 0.15), glass, _body_mesh)
+	_box(Vector3(W + 0.04, body_h * 0.42, L * 0.82), Vector3(0, win_y, -0.15), glass, _body_mesh)
 	# الزجاج الأمامي
-	_box(Vector3(W - 0.2, body_h * 0.55, 0.06), Vector3(0, win_y - 0.1, -L * 0.5 - 0.01), glass, _body_mesh)
+	_box(Vector3(W - 0.2, body_h * 0.55, 0.06), Vector3(0, win_y - 0.1, L * 0.5 + 0.01), glass, _body_mesh)
 	# الزجاج الخلفي
-	_box(Vector3(W - 0.4, body_h * 0.35, 0.06), Vector3(0, win_y, L * 0.5 + 0.01), glass, _body_mesh)
+	_box(Vector3(W - 0.4, body_h * 0.35, 0.06), Vector3(0, win_y, -L * 0.5 - 0.01), glass, _body_mesh)
 	# الصدّام الأمامي/الخلفي
 	_box(Vector3(W + 0.05, 0.3, 0.2), Vector3(0, floor_y, -L * 0.5), dark, _body_mesh)
 	_box(Vector3(W + 0.05, 0.3, 0.2), Vector3(0, floor_y, L * 0.5), dark, _body_mesh)
 	# لوحة رقم الخط (أمام أعلى)
-	_box(Vector3(W * 0.7, 0.3, 0.05), Vector3(0, H - 0.45, -L * 0.5 - 0.03), _make_sign_mat(), _body_mesh)
+	_box(Vector3(W * 0.7, 0.3, 0.05), Vector3(0, H - 0.45, L * 0.5 + 0.03), _make_sign_mat(), _body_mesh)
 	# الأبواب (الجهة اليمنى +X) — بابان
 	var door_mat := _flat(col.darkened(0.15), 0.4)
-	_door_left = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(W * 0.5 + 0.02, floor_y + body_h * 0.45, -L * 0.5 + 1.4), door_mat, _body_mesh)
-	_door_left2 = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(W * 0.5 + 0.02, floor_y + body_h * 0.45, L * 0.15), door_mat, _body_mesh)
+	_door_left = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(W * 0.5 + 0.02, floor_y + body_h * 0.45, L * 0.5 - 1.4), door_mat, _body_mesh)
+	_door_left2 = _box(Vector3(0.06, body_h * 0.85, 1.2), Vector3(W * 0.5 + 0.02, floor_y + body_h * 0.45, -L * 0.15), door_mat, _body_mesh)
 	# المصابيح الأمامية
 	var lamp := _flat(Color(1, 0.98, 0.85), 0.2)
 	lamp.emission_enabled = true
 	lamp.emission = Color(1, 0.95, 0.7)
 	lamp.emission_energy_multiplier = 2.0
 	for sx in [-1.0, 1.0]:
-		_box(Vector3(0.35, 0.2, 0.08), Vector3(sx * (W * 0.5 - 0.35), floor_y + 0.35, -L * 0.5 - 0.05), lamp, _body_mesh)
+		_box(Vector3(0.35, 0.2, 0.08), Vector3(sx * (W * 0.5 - 0.35), floor_y + 0.35, L * 0.5 + 0.05), lamp, _body_mesh)
 		var sl := SpotLight3D.new()
-		sl.position = Vector3(sx * (W * 0.5 - 0.35), floor_y + 0.35, -L * 0.5 - 0.1)
-		sl.rotation_degrees = Vector3(-8, 180, 0)
+		sl.position = Vector3(sx * (W * 0.5 - 0.35), floor_y + 0.35, L * 0.5 + 0.1)
+		sl.rotation_degrees = Vector3(-8, 0, 0)
 		sl.spot_range = 40
 		sl.spot_angle = 35
 		sl.light_energy = 0.0
@@ -146,10 +146,10 @@ func _build_body() -> void:
 	_mat_brake.emission = Color(1, 0.1, 0.1)
 	_mat_brake.emission_energy_multiplier = 0.0
 	for sx in [-1.0, 1.0]:
-		_brake_lights.append(_box(Vector3(0.3, 0.22, 0.08), Vector3(sx * (W * 0.5 - 0.3), floor_y + 0.4, L * 0.5 + 0.05), _mat_brake, _body_mesh))
+		_brake_lights.append(_box(Vector3(0.3, 0.22, 0.08), Vector3(sx * (W * 0.5 - 0.3), floor_y + 0.4, -L * 0.5 - 0.05), _mat_brake, _body_mesh))
 	# مرايا
 	for sx in [-1.0, 1.0]:
-		_box(Vector3(0.12, 0.3, 0.2), Vector3(sx * (W * 0.5 + 0.2), win_y, -L * 0.5 + 0.4), dark, _body_mesh)
+		_box(Vector3(0.12, 0.3, 0.2), Vector3(sx * (W * 0.5 + 0.2), win_y, L * 0.5 - 0.4), dark, _body_mesh)
 	# شكل التصادم
 	var cs := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
@@ -172,14 +172,14 @@ func _build_wheels() -> void:
 	var wheel_mat := _flat(Color(0.08, 0.08, 0.09), 0.9)
 	var rim_mat := _flat(Color(0.7, 0.7, 0.72), 0.3, 0.6)
 	var positions := [
-		[Vector3(-W * 0.5 + 0.15, wheel_r, -L * 0.5 + 1.3), true],
-		[Vector3(W * 0.5 - 0.15, wheel_r, -L * 0.5 + 1.3), true],
-		[Vector3(-W * 0.5 + 0.15, wheel_r, L * 0.5 - 1.6), false],
-		[Vector3(W * 0.5 - 0.15, wheel_r, L * 0.5 - 1.6), false],
+		[Vector3(-W * 0.5 + 0.15, wheel_r, L * 0.5 - 1.3), true],
+		[Vector3(W * 0.5 - 0.15, wheel_r, L * 0.5 - 1.3), true],
+		[Vector3(-W * 0.5 + 0.15, wheel_r, -L * 0.5 + 1.6), false],
+		[Vector3(W * 0.5 - 0.15, wheel_r, -L * 0.5 + 1.6), false],
 	]
 	if L >= 14.0:
-		positions.append([Vector3(-W * 0.5 + 0.15, wheel_r, L * 0.1), false])
-		positions.append([Vector3(W * 0.5 - 0.15, wheel_r, L * 0.1), false])
+		positions.append([Vector3(-W * 0.5 + 0.15, wheel_r, -L * 0.1), false])
+		positions.append([Vector3(W * 0.5 - 0.15, wheel_r, -L * 0.1), false])
 	for p in positions:
 		var w := VehicleWheel3D.new()
 		w.position = p[0]
@@ -224,7 +224,7 @@ func set_headlights(on: bool) -> void:
 func _physics_process(delta: float) -> void:
 	speed_ms = linear_velocity.length()
 	speed_kmh = speed_ms * 3.6
-	var forward_speed := -linear_velocity.dot(global_transform.basis.z)  # الأمام = -Z
+	var forward_speed := linear_velocity.dot(global_transform.basis.z)  # الأمام = +Z (اتجاه engine_force الموجب في VehicleBody3D)
 	# ---- التوجيه: أسرع عند السرعات المنخفضة (للاصطفاف)، محدود عند السرعات العالية (ثبات)
 	var speed_factor := clampf(1.0 - speed_kmh / 140.0, 0.35, 1.0)
 	var sens: float = float(GameState.settings.get("steer_sensitivity", 1.0))
@@ -245,9 +245,9 @@ func _physics_process(delta: float) -> void:
 			brake = brake_input * _brake_force
 			engine_force = 0.0
 		else:
-			# الباص شبه متوقف: الفرامل تعمل كرجوع للخلف
+			# الباص شبه متوقف: الفرامل تعمل كرجوع للخلف (بسرعة محدودة)
 			brake = 0.0
-			if not doors_block:
+			if not doors_block and forward_speed > -4.0:
 				engine_force = -brake_input * _engine_force * 0.45
 	else:
 		brake = 0.0
@@ -268,7 +268,7 @@ func _physics_process(delta: float) -> void:
 		_flip_timer += delta
 		if _flip_timer > 1.5:
 			_flip_timer = 0.0
-			var fwd := -global_transform.basis.z
+			var fwd := global_transform.basis.z
 			fwd.y = 0.0
 			if fwd.length() < 0.1:
 				fwd = Vector3.FORWARD
@@ -339,7 +339,7 @@ func reset_to(pos: Vector3, dir: Vector3) -> void:
 	## يضع الباص في موضع واتجاه معيّنين (الأمام = -Z)
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
-	var basis := Basis.looking_at(dir, Vector3.UP)
+	var basis := Basis.looking_at(-dir, Vector3.UP)  # الأمام (+Z) نحو dir
 	global_transform = Transform3D(basis, pos + Vector3(0, 0.6, 0))
 	_prev_velocity = Vector3.ZERO
 	_prev_forward_speed = 0.0
@@ -349,10 +349,10 @@ func reset_to(pos: Vector3, dir: Vector3) -> void:
 	steering = 0.0
 
 func front_position() -> Vector3:
-	return global_position - global_transform.basis.z * float(data["length"]) * 0.5
+	return global_position + global_transform.basis.z * float(data["length"]) * 0.5
 
 func door_position() -> Vector3:
 	## موقع الباب الأمامي (الجهة اليمنى)
 	var L: float = data["length"]
 	var W: float = data["width"]
-	return global_position + global_transform.basis.x * (W * 0.5) - global_transform.basis.z * (L * 0.5 - 1.4)
+	return global_position + global_transform.basis.x * (W * 0.5) + global_transform.basis.z * (L * 0.5 - 1.4)

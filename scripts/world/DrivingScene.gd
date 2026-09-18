@@ -211,7 +211,7 @@ func _build_camera() -> void:
 func _update_camera(delta: float, snap := false) -> void:
 	var L: float = bus.data["length"]
 	var H: float = bus.data["height"]
-	var fwd := -bus.global_transform.basis.z
+	var fwd := bus.global_transform.basis.z
 	var flat_fwd := Vector3(fwd.x, 0, fwd.z).normalized()
 	var target_pos: Vector3
 	var look_at: Vector3
@@ -223,7 +223,7 @@ func _update_camera(delta: float, snap := false) -> void:
 			target_pos = bus.global_position - flat_fwd * (L * 0.5 + 3.0) + Vector3(0, H + 7.0, 0)
 			look_at = bus.global_position + flat_fwd * 2.0
 		_:  # داخلية
-			target_pos = bus.global_position + flat_fwd * (L * 0.5 - 1.2) + Vector3(0, H - 0.6, 0) + bus.global_transform.basis.x * -0.6
+			target_pos = bus.global_position + flat_fwd * (L * 0.5 - 1.2) + Vector3(0, H - 0.6, 0) - bus.global_transform.basis.x * 0.6
 			look_at = target_pos + fwd * 10.0 + Vector3(0, -0.5, 0)
 	if snap:
 		camera.global_position = target_pos
@@ -473,6 +473,8 @@ func cleanup() -> void:
 var _auto_wps: Array = []   # [{pos, stop_idx(-1 if none)}]
 var _auto_i := 0
 var _auto_wait := 0.0
+var _stuck_t := 0.0
+var _reverse_t := 0.0
 
 func _build_autopilot_waypoints() -> void:
 	_auto_wps.clear()
@@ -482,21 +484,37 @@ func _build_autopilot_waypoints() -> void:
 	for st in route["stops"]:
 		stops_by_seg[int(st["seg"])] = si
 		si += 1
+	var lane := CityBuilder.LANE_OFFSET
 	for seg in range(path.size() - 1):
 		var a := RouteData.grid_to_world(path[seg][0], path[seg][1])
 		var b := RouteData.grid_to_world(path[seg + 1][0], path[seg + 1][1])
 		var dir := (b - a).normalized()
 		var right := Vector3(-dir.z, 0, dir.x)
-		# نقطة بعد التقاطع + نقطة قبل التقاطع التالي (في الحارة اليمنى)
-		_auto_wps.append({"pos": a + dir * 10.0 + right * CityBuilder.LANE_OFFSET, "stop": -1})
+		# مخرج التقاطع الحالي
+		_auto_wps.append({"pos": a + dir * 12.0 + right * lane, "stop": -1, "slow": false})
 		if stops_by_seg.has(seg):
 			var idx: int = stops_by_seg[seg]
 			var stop := stops[idx]
-			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -3.2, "stop": idx})
-		_auto_wps.append({"pos": b - dir * 10.0 + right * CityBuilder.LANE_OFFSET, "stop": -1})
+			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -3.2, "stop": idx, "slow": true})
+		# قبل التقاطع التالي
+		_auto_wps.append({"pos": b - dir * 16.0 + right * lane, "stop": -1, "slow": true})
+		if seg + 2 < path.size():
+			var c := RouteData.grid_to_world(path[seg + 2][0], path[seg + 2][1])
+			var dir2 := (c - b).normalized()
+			var right2 := Vector3(-dir2.z, 0, dir2.x)
+			var turn := dir.cross(dir2).y
+			if absf(turn) > 0.5:
+				# انعطاف: نقطة الذروة داخل التقاطع
+				if turn < 0.0:
+					# يمين (ضيق): نقطة قرب الزاوية
+					_auto_wps.append({"pos": b + right * lane * 0.9 + dir2 * lane * 0.9 - dir * 2.0, "stop": -1, "slow": true})
+				else:
+					# يسار (واسع): تجاوز المركز ثم ادخل الحارة
+					_auto_wps.append({"pos": b + dir * 3.0 + right * lane * 0.3, "stop": -1, "slow": true})
+					_auto_wps.append({"pos": b + dir2 * 4.0 + right2 * lane, "stop": -1, "slow": true})
 	# ابدأ من أول نقطة أمام الباص (تجاهل ما خلفه)
 	_auto_i = 0
-	var fwd := -bus.global_transform.basis.z
+	var fwd := bus.global_transform.basis.z
 	for i in range(_auto_wps.size()):
 		var to: Vector3 = _auto_wps[i]["pos"] - bus.global_position
 		to.y = 0.0
@@ -517,7 +535,7 @@ func _autopilot_drive(delta: float) -> void:
 	var to := target - bus.global_position
 	to.y = 0
 	var dist := to.length()
-	var fwd := -bus.global_transform.basis.z
+	var fwd := bus.global_transform.basis.z
 	var right := bus.global_transform.basis.x
 	var ahead := to.normalized().dot(fwd)
 	var steer := clampf(to.normalized().dot(right) * 2.5, -1.0, 1.0)
@@ -537,12 +555,28 @@ func _autopilot_drive(delta: float) -> void:
 			bus.toggle_doors()
 			_auto_i += 1
 		return
-	var target_speed := 30.0
+	# تعافٍ من الانحشار: لو الباص متوقف والهدف بعيد، ارجع للخلف قليلاً
+	if bus.speed_kmh < 0.5 and dist > 4.0 and _auto_wait <= 0.0:
+		_stuck_t += delta
+	else:
+		_stuck_t = 0.0
+	if _stuck_t > 2.0 or _reverse_t > 0.0:
+		if _reverse_t <= 0.0:
+			_reverse_t = 2.0
+			_stuck_t = 0.0
+		_reverse_t -= delta
+		bus.throttle_input = 0.0
+		bus.brake_input = 1.0   # عند التوقف = رجوع للخلف
+		bus.steer_input = -steer
+		return
+	var target_speed := 26.0
+	if bool(wp.get("slow", false)) and dist < 24.0:
+		target_speed = 12.0
 	if absf(steer) > 0.5:
-		target_speed = 14.0
+		target_speed = 9.0
 	if is_stop:
 		target_speed = clampf(dist * 2.5, 4.0, 22.0)
-	if dist < (2.5 if is_stop else 6.0):
+	if dist < (2.5 if is_stop else 4.5):
 		if is_stop:
 			bus.throttle_input = 0.0
 			bus.brake_input = 1.0

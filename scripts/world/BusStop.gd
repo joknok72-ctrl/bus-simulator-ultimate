@@ -170,9 +170,10 @@ func evaluate_parking(bus: Bus) -> Dictionary:
 	# الباب يجب أن يكون قريباً من الرصيف (x ≈ -1.0) وداخل طول المنطقة
 	var lateral := absf(local.x - (-2.0))
 	var longitudinal := absf(local.z)
-	var angle := absf(wrapf(bus.global_rotation.y - global_rotation.y, -PI, PI))
-	# اتجاه الباص يجب أن يكون موازياً للمحطة (المقدمة نحو -Z المحلي)
-	angle = min(angle, absf(angle - PI))
+	# اتجاه الباص (+Z) يجب أن يوازي اتجاه المحطة (-Z المحلي = اتجاه الحركة)
+	var bus_fwd := bus.global_transform.basis.z
+	var stop_fwd := -global_transform.basis.z
+	var angle := absf(Vector2(bus_fwd.x, bus_fwd.z).angle_to(Vector2(stop_fwd.x, stop_fwd.z)))
 	var score := 0
 	if longitudinal <= _zone_len * 0.5 + 2.0 and lateral <= 3.5:
 		score = 1
