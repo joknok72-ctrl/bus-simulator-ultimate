@@ -660,7 +660,7 @@ func _run_test_flow() -> void:
 				var frames := 0
 				var snap_i := 0
 				var last_snap := t0
-				while Time.get_ticks_msec() - t0 < 150000 and driving and not driving._finished:
+				while Time.get_ticks_msec() - t0 < 260000 and driving and not driving._finished:
 					await get_tree().process_frame
 					frames += 1
 					if Time.get_ticks_msec() - last_snap > 20000:

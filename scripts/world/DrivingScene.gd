@@ -558,7 +558,14 @@ func _autopilot_drive(delta: float) -> void:
 	var fwd := bus.global_transform.basis.z
 	var right := -bus.global_transform.basis.x
 	var ahead := to.normalized().dot(fwd)
-	var steer := clampf(to.normalized().dot(right) * 2.5, -1.0, 1.0)
+	# توجيه نحو نقطة على الخط بين النقطة الحالية والتالية (Pure Pursuit مبسّط) لتتبع الحارة بسلاسة
+	var aim := target
+	if _auto_i + 1 < _auto_wps.size() and dist < 8.0 and not is_stop:
+		var nxt: Vector3 = _auto_wps[_auto_i + 1]["pos"]
+		aim = target.lerp(nxt, clampf((8.0 - dist) / 8.0, 0.0, 0.6))
+	var to_aim := aim - bus.global_position
+	to_aim.y = 0
+	var steer := clampf(to_aim.normalized().dot(right) * 2.2, -1.0, 1.0)
 	if ahead < 0.0:
 		steer = 1.0 if steer >= 0.0 else -1.0
 	bus.steer_input = steer
@@ -576,15 +583,17 @@ func _autopilot_drive(delta: float) -> void:
 			_auto_i += 1
 		return
 	# تعافٍ من الانحشار: لو الباص متوقف والهدف بعيد، ارجع للخلف قليلاً
-	if bus.speed_kmh < 0.5 and dist > (6.0 if is_stop else 4.0) and _auto_wait <= 0.0:
+	if bus.speed_kmh < 2.0 and dist > (4.0 if is_stop else 4.0) and _auto_wait <= 0.0:
 		_stuck_t += delta
 	else:
 		_stuck_t = 0.0
 	if _stuck_t > 2.0 or _reverse_t > 0.0:
 		if _reverse_t <= 0.0:
-			_reverse_t = 1.6
+			_reverse_t = 2.2
 			_stuck_t = 0.0
 		_reverse_t -= delta
+		if bus.doors_open:
+			bus.toggle_doors()
 		bus.throttle_input = 0.0
 		bus.brake_input = 1.0   # عند التوقف = رجوع للخلف
 		bus.steer_input = 0.0   # رجوع مستقيم ثم إعادة المحاولة
@@ -595,8 +604,12 @@ func _autopilot_drive(delta: float) -> void:
 	if absf(steer) > 0.4:
 		target_speed = 7.0
 	if is_stop:
-		target_speed = clampf(dist * 2.5, 4.0, 22.0)
-	if dist < (2.5 if is_stop else 4.5):
+		target_speed = clampf(dist * 1.6, 3.0, 14.0)
+	# عند المحطة: توقف إذا قريب أو إذا الباب داخل منطقة التقييم (أفضل من الاعتماد على المسافة فقط)
+	var in_zone := false
+	if is_stop and _at_stop and _at_stop.index == next_stop_idx and bus.speed_kmh < 6.0:
+		in_zone = int(_at_stop.evaluate_parking(bus)["score"]) > 0
+	if dist < (2.0 if is_stop else 4.5) or (is_stop and in_zone and dist < 6.0):
 		if is_stop:
 			bus.throttle_input = 0.0
 			bus.brake_input = 1.0

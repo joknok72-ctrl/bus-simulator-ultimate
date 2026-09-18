@@ -130,6 +130,13 @@ func _build_roads() -> void:
 			bs.size = Vector3(inner, 0.25, inner)
 			cs.shape = bs
 			sb.add_child(cs)
+			# حاجز داخلي غير مرئي يحمي المباني ويمنع الباص من التوغل في البلوك
+			var guard := CollisionShape3D.new()
+			var gs := BoxShape3D.new()
+			gs.size = Vector3(inner - SIDEWALK_W * 2.0 + 1.0, 3.0, inner - SIDEWALK_W * 2.0 + 1.0)
+			guard.shape = gs
+			guard.position = Vector3(0, 1.5, 0)
+			sb.add_child(guard)
 			sb.position = Vector3(cx, 0.12, cz)
 			roads.add_child(sb)
 
