@@ -217,6 +217,11 @@ func _build_wheels() -> void:
 		add_child(w)
 		_wheels.append(w)
 
+## إخفاء الجسم في الكاميرا الداخلية (تبقى العجلات والأضواء)
+func set_body_visible(v: bool) -> void:
+	if _body_mesh:
+		_body_mesh.visible = v
+
 func set_headlights(on: bool) -> void:
 	for h in _headlights:
 		h.light_energy = 2.5 if on else 0.0

@@ -205,6 +205,7 @@ func _build_camera() -> void:
 	camera.far = 400
 	add_child(camera)
 	cam_mode = int(GameState.settings.get("camera", 0))
+	bus.set_body_visible(cam_mode != 2)
 	_update_camera(1.0, true)
 	camera.current = true
 
@@ -222,9 +223,9 @@ func _update_camera(delta: float, snap := false) -> void:
 		1:  # خلفية قريبة/جانبية (للاصطفاف)
 			target_pos = bus.global_position - flat_fwd * (L * 0.5 + 3.0) + Vector3(0, H + 7.0, 0)
 			look_at = bus.global_position + flat_fwd * 2.0
-		_:  # داخلية
-			target_pos = bus.global_position + flat_fwd * (L * 0.5 - 1.2) + Vector3(0, H - 0.6, 0) + bus.global_transform.basis.x * 0.6
-			look_at = target_pos + fwd * 10.0 + Vector3(0, -0.5, 0)
+		_:  # داخلية (عين السائق — جسم الباص مخفي، تبقى العجلات والمرايا في المحيط)
+			target_pos = bus.global_position + flat_fwd * (L * 0.5 + 0.3) + Vector3(0, H * 0.72, 0) + bus.global_transform.basis.x * 0.7
+			look_at = target_pos + fwd * 12.0 + Vector3(0, -0.9, 0)
 	if snap:
 		camera.global_position = target_pos
 	else:
@@ -430,6 +431,7 @@ func _on_horn(down: bool) -> void:
 func _on_camera_toggle() -> void:
 	cam_mode = (cam_mode + 1) % 3
 	GameState.set_setting("camera", cam_mode)
+	bus.set_body_visible(cam_mode != 2)
 	_update_camera(1.0, true)
 	AudioFX.play("ui_click", -8.0)
 

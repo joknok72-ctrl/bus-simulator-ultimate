@@ -137,9 +137,14 @@ func _scroll_vbox(parent: Control, margin := 28, sep := 16) -> VBoxContainer:
 
 func _stat_row(parent: Control, key: String, value: String, col := C_TEXT) -> void:
 	var hb := HBoxContainer.new()
-	var k := _label(key, 24, C_MUTED, HORIZONTAL_ALIGNMENT_LEFT)
+	var k := _label(key, 22, C_MUTED, HORIZONTAL_ALIGNMENT_LEFT)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var v := _label(value, 24, col, HORIZONTAL_ALIGNMENT_RIGHT)
+	k.autowrap_mode = TextServer.AUTOWRAP_OFF
+	k.clip_text = true
+	var v := _label(value, 22, col, HORIZONTAL_ALIGNMENT_RIGHT)
+	v.autowrap_mode = TextServer.AUTOWRAP_OFF
+	v.custom_minimum_size = Vector2(140, 0)
+	v.text_direction = Control.TEXT_DIRECTION_LTR
 	hb.add_child(k)
 	hb.add_child(v)
 	parent.add_child(hb)
@@ -288,12 +293,15 @@ func show_garage(garage_only := false) -> void:
 	var top := HBoxContainer.new()
 	var back := _button("‹", Color(0.3, 0.33, 0.42), 30, 64)
 	back.custom_minimum_size = Vector2(64, 64)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(show_menu)
 	top.add_child(back)
 	var title := _label("الجراج والخطوط" if not garage_only else "الجراج", 34, C_TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(title)
 	var money := _label("💰 " + GameState.fmt_money(GameState.money), 26, C_ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
+	money.autowrap_mode = TextServer.AUTOWRAP_OFF
+	money.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(money)
 	vb.add_child(top)
 	var list := _scroll_vbox(vb, 0, 14)
@@ -484,23 +492,26 @@ func show_pause() -> void:
 # ==================================================================== النتائج
 func show_results(result: Dictionary) -> void:
 	state = State.RESULTS
+	if driving and is_instance_valid(driving):
+		driving.hud.visible = false
+		driving.controls.visible = false
 	var root := _screen(false)
 	var dim := ColorRect.new()
 	dim.color = Color(0.03, 0.05, 0.1, 0.85)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(dim)
-	var vb := _vbox(root, 28, 12)
-	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	var outer := _vbox(root, 28, 8)
+	var vb := _scroll_vbox(outer, 0, 8)
 	vb.add_child(_label("اكتمل الخط! 🎉", 40, C_OK))
 	vb.add_child(_label(result["route"], 24, C_MUTED))
 	var stars := ""
 	for i in range(3):
 		stars += "★" if i < int(result["stars"]) else "☆"
-	var sl := _label(stars, 64, C_ACCENT)
+	var sl := _label(stars, 56, C_ACCENT)
 	vb.add_child(sl)
 	var card := _card()
 	var cv := VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 8)
+	cv.add_theme_constant_override("separation", 4)
 	card.add_child(cv)
 	_stat_row(cv, "👥 الركاب", str(result["passengers"]))
 	_stat_row(cv, "🎫 التذاكر", "+%d ج" % result["earned"], C_OK)
@@ -517,7 +528,10 @@ func show_results(result: Dictionary) -> void:
 	_stat_row(cv, "🏆 النقاط", str(result["score"]), C_ACCENT)
 	vb.add_child(card)
 	var xp := GameState.xp_progress()
-	vb.add_child(_label("المستوى %d  •  %d / %d XP" % [GameState.level, int(xp.x), int(xp.y)], 20, C_MUTED))
+	var xpl := _label("المستوى %d  •  XP %d/%d" % [GameState.level, int(xp.x), int(xp.y)], 20, C_MUTED)
+	xpl.text_direction = Control.TEXT_DIRECTION_RTL
+	xpl.structured_text_bidi_override = TextServer.STRUCTURED_TEXT_DEFAULT
+	vb.add_child(xpl)
 	var again := _button("↻ مرة أخرى", Color(0.2, 0.45, 0.8), 26)
 	again.pressed.connect(func(): start_driving(GameState.selected_route))
 	vb.add_child(again)
@@ -551,6 +565,7 @@ func show_settings(from_pause := false) -> void:
 	var top := HBoxContainer.new()
 	var back := _button("‹", Color(0.3, 0.33, 0.42), 30, 64)
 	back.custom_minimum_size = Vector2(64, 64)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func():
 		if from_pause:
 			state = State.DRIVING

@@ -123,13 +123,14 @@ func _build_roads() -> void:
 			var sw := _box(Vector3(inner, 0.25, inner), Vector3(cx, 0.12, cz), mat_sidewalk, roads)
 			sw.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			# جسم تصادم للرصيف حتى لا يخرج الباص عن الطريق بسهولة (منخفض ليمكن تجاوزه بحذر)
+			# التصادم أعلى قليلاً من الرصيف المرئي (0.55م) لمنع تسلّق الباص للرصيف بسهولة
 			var sb := StaticBody3D.new()
 			var cs := CollisionShape3D.new()
 			var bs := BoxShape3D.new()
-			bs.size = Vector3(inner, 0.25, inner)
+			bs.size = Vector3(inner, 0.55, inner)
 			cs.shape = bs
 			sb.add_child(cs)
-			sb.position = Vector3(cx, 0.12, cz)
+			sb.position = Vector3(cx, 0.27, cz)
 			roads.add_child(sb)
 
 func _build_blocks() -> void:
