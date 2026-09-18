@@ -6,6 +6,7 @@ extends VehicleBody3D
 signal collided(impulse: float)
 signal doors_changed(open: bool)
 signal comfort_event(kind: String, severity: float)  # "brake", "turn", "bump"
+signal flipped_recovered()
 
 var data: Dictionary
 var bus_id := "mini"
@@ -33,6 +34,11 @@ var _mat_brake: StandardMaterial3D
 var _skid_timer := 0.0
 var _collision_cooldown := 0.0
 var _last_lateral_g := 0.0
+var _prev_forward_speed := 0.0
+var _decel_smooth := 0.0
+var _lat_smooth := 0.0
+var _comfort_cooldown := 0.0
+var _flip_timer := 0.0
 
 # معاملات مشتقة من البيانات + الترقيات
 var _engine_force := 0.0
@@ -54,7 +60,7 @@ func setup(id: String) -> void:
 	_comfort_tolerance = 1.0 + 0.25 * sus_lvl
 	mass = float(data["mass"])
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = Vector3(0, -0.4, 0)
+	center_of_mass = Vector3(0, -0.9, 0)
 	collision_layer = 2
 	collision_mask = 1 | 4 | 8
 	contact_monitor = true
@@ -186,8 +192,8 @@ func _build_wheels() -> void:
 		w.suspension_max_force = mass * 12.0
 		w.damping_compression = 1.2
 		w.damping_relaxation = 1.6
-		w.wheel_friction_slip = 4.5
-		w.wheel_roll_influence = 0.05
+		w.wheel_friction_slip = 3.2
+		w.wheel_roll_influence = 0.02
 		var mi := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
 		cyl.top_radius = wheel_r
@@ -250,20 +256,45 @@ func _physics_process(delta: float) -> void:
 	# مقاومة طبيعية
 	if throttle_input <= 0.01 and brake_input <= 0.01 and not handbrake:
 		brake = _brake_force * 0.02
+	# ---- ثبات: مقاومة الانقلاب (anti-roll) + تعافٍ تلقائي إذا انقلب
+	var up := global_transform.basis.y
+	var tilt := up.angle_to(Vector3.UP)
+	if tilt > 0.05 and tilt < 1.4:
+		var corr := up.cross(Vector3.UP)
+		apply_torque(corr * mass * 18.0 * tilt)
+		angular_velocity.x *= 0.96
+		angular_velocity.z *= 0.96
+	if tilt > 1.4:
+		_flip_timer += delta
+		if _flip_timer > 1.5:
+			_flip_timer = 0.0
+			var fwd := -global_transform.basis.z
+			fwd.y = 0.0
+			if fwd.length() < 0.1:
+				fwd = Vector3.FORWARD
+			reset_to(Vector3(global_position.x, 0.0, global_position.z), fwd.normalized())
+			flipped_recovered.emit()
+	else:
+		_flip_timer = 0.0
 	# ---- Game Feel: أضواء الفرامل
 	_mat_brake.emission_energy_multiplier = 3.0 if (brake_input > 0.05 or handbrake) else 0.0
-	# ---- راحة الركاب: قياس التسارع
-	var accel := (linear_velocity - _prev_velocity) / max(delta, 0.0001)
-	var g_long := accel.dot(global_transform.basis.z) / 9.81   # موجب = فرملة
-	var g_lat := absf(accel.dot(global_transform.basis.x)) / 9.81
-	if g_long > 0.45 * _comfort_tolerance and speed_kmh > 8.0:
-		comfort_event.emit("brake", g_long)
-		if g_long > 0.8 and _skid_timer <= 0.0:
-			AudioFX.play("skid", -8.0, randf_range(0.9, 1.1), 0.8)
-			_skid_timer = 1.0
-	if g_lat > 0.4 * _comfort_tolerance and speed_kmh > 15.0 and g_lat > _last_lateral_g + 0.05:
-		comfort_event.emit("turn", g_lat)
-	_last_lateral_g = g_lat
+	# ---- راحة الركاب: تسارع مُنعَّم (فلتر) لتجنب ضجيج الفيزياء
+	var decel_raw: float = (_prev_forward_speed - forward_speed) / maxf(delta, 0.0001) / 9.81  # موجب = فرملة
+	_decel_smooth = lerpf(_decel_smooth, decel_raw, 0.25)
+	var lat_raw: float = absf(angular_velocity.y * forward_speed) / 9.81  # تسارع جانبي = v·ω
+	_lat_smooth = lerpf(_lat_smooth, lat_raw, 0.25)
+	_comfort_cooldown -= delta
+	if _comfort_cooldown <= 0.0:
+		if _decel_smooth > 0.35 * _comfort_tolerance and speed_kmh > 8.0:
+			comfort_event.emit("brake", _decel_smooth)
+			_comfort_cooldown = 0.6
+			if _decel_smooth > 0.7 and _skid_timer <= 0.0:
+				AudioFX.play("skid", -8.0, randf_range(0.9, 1.1), 0.8)
+				_skid_timer = 1.0
+		elif _lat_smooth > 0.3 * _comfort_tolerance and speed_kmh > 15.0:
+			comfort_event.emit("turn", _lat_smooth)
+			_comfort_cooldown = 0.6
+	_prev_forward_speed = forward_speed
 	_prev_velocity = linear_velocity
 	_skid_timer -= delta
 	_collision_cooldown -= delta
@@ -311,6 +342,9 @@ func reset_to(pos: Vector3, dir: Vector3) -> void:
 	var basis := Basis.looking_at(dir, Vector3.UP)
 	global_transform = Transform3D(basis, pos + Vector3(0, 0.6, 0))
 	_prev_velocity = Vector3.ZERO
+	_prev_forward_speed = 0.0
+	_decel_smooth = 0.0
+	_lat_smooth = 0.0
 	_steer_current = 0.0
 	steering = 0.0
 

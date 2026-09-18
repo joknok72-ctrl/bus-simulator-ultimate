@@ -38,7 +38,7 @@ var _keyboard_steer := 0.0
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_font = ThemeDB.fallback_font
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	resized.connect(_layout)
 	_layout()
 

@@ -45,8 +45,6 @@ var _horn_on := false
 var fare := 5
 var speed_limit := 50
 var _autopilot := false
-var _auto_t := 0.0
-var _auto_frame := 0
 var _cam_yaw_smooth := 0.0
 
 func start(p_route_id: String) -> void:
@@ -77,6 +75,7 @@ func start(p_route_id: String) -> void:
 	AudioFX.music_start()
 	_set_next_stop(0)
 	hud.show_big("انطلق! 🚌", HUD.COL_ACCENT, 1.6)
+	bus.flipped_recovered.connect(func(): hud.show_big("تمت إعادة الباص", Color(0.85, 0.9, 1.0), 1.2))
 
 # ------------------------------------------------------------------ البيئة
 func _build_environment() -> void:
@@ -104,13 +103,14 @@ func _build_environment() -> void:
 		mat.sky_horizon_color = Color(0.75, 0.85, 0.95)
 		mat.ground_bottom_color = Color(0.4, 0.5, 0.35)
 		mat.ground_horizon_color = Color(0.7, 0.8, 0.8)
-		env.ambient_light_color = Color(0.8, 0.85, 0.95)
-		env.ambient_light_energy = 0.9
+		env.ambient_light_color = Color(0.7, 0.78, 0.9)
+		env.ambient_light_energy = 0.45
 	mat.sun_angle_max = 20.0
 	sky.sky_material = mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 0.9
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.1, 0.1, 0.15) if is_night else Color(0.75, 0.8, 0.9)
 	env.fog_density = 0.004 if is_rain else 0.0015
@@ -119,9 +119,9 @@ func _build_environment() -> void:
 	add_child(world_env)
 	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, 35, 0)
-	sun.light_energy = 0.15 if is_night else (0.9 if route["time"] == "evening" else 1.25)
+	sun.light_energy = 0.15 if is_night else (0.7 if route["time"] == "evening" else 0.85)
 	sun.light_color = Color(0.6, 0.65, 0.9) if is_night else (Color(1.0, 0.75, 0.55) if route["time"] == "evening" else Color(1.0, 0.97, 0.9))
-	sun.shadow_enabled = bool(GameState.settings.get("shadows", true)) and not is_night
+	sun.shadow_enabled = bool(GameState.settings.get("shadows", true)) and not is_night and not GameState.test_mode
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 90.0
 	add_child(sun)
@@ -160,8 +160,7 @@ func _spawn_bus() -> void:
 	var first_stop: Dictionary = route["stops"][0]
 	var p := RouteData.point_on_segment(route, int(first_stop["seg"]), maxf(float(first_stop["t"]) - 0.3, 0.05))
 	var dir: Vector3 = p["dir"]
-	var right := dir.cross(Vector3.UP).normalized() * -1.0  # يمين الاتجاه
-	right = Vector3(dir.z, 0, -dir.x)  # right-hand perpendicular
+	var right := Vector3(-dir.z, 0, dir.x)  # يمين اتجاه الحركة (forward × up)
 	var lane_pos: Vector3 = p["pos"] + right * CityBuilder.LANE_OFFSET
 	bus.reset_to(lane_pos, dir)
 	bus.collided.connect(_on_collision)
@@ -174,7 +173,7 @@ func _spawn_stops() -> void:
 	for s in route["stops"]:
 		var p := RouteData.point_on_segment(route, int(s["seg"]), float(s["t"]))
 		var dir: Vector3 = p["dir"]
-		var right := Vector3(dir.z, 0, -dir.x)
+		var right := Vector3(-dir.z, 0, dir.x)
 		var stop := BusStop.new()
 		add_child(stop)
 		# المحطة على الرصيف الأيمن (ROAD_W/2 + قليلاً)
@@ -353,7 +352,7 @@ func _handle_stop(stop: BusStop) -> void:
 	var leaving := passengers if is_last else int(round(passengers * randf_range(0.3, 0.6)))
 	passengers -= leaving
 	# صعود الركاب المنتظرين (بحد السعة)
-	var boarding := min(stop.waiting.size(), capacity - passengers)
+	var boarding: int = mini(stop.waiting.size(), capacity - passengers)
 	var comfort_mult := 1.0 if comfort > 66 else (0.7 if comfort > 33 else 0.4)
 	var per_fare := int(round(fare * comfort_mult))
 	var screen := camera.unproject_position(bus.door_position() + Vector3(0, 2.5, 0))
@@ -471,27 +470,90 @@ func cleanup() -> void:
 	AudioFX.ambience_stop()
 
 # ------------------------------------------------------------------ قيادة آلية للاختبار (--test)
+var _auto_wps: Array = []   # [{pos, stop_idx(-1 if none)}]
+var _auto_i := 0
+var _auto_wait := 0.0
+
+func _build_autopilot_waypoints() -> void:
+	_auto_wps.clear()
+	var path: Array = route["path"]
+	var stops_by_seg: Dictionary = {}
+	var si := 0
+	for st in route["stops"]:
+		stops_by_seg[int(st["seg"])] = si
+		si += 1
+	for seg in range(path.size() - 1):
+		var a := RouteData.grid_to_world(path[seg][0], path[seg][1])
+		var b := RouteData.grid_to_world(path[seg + 1][0], path[seg + 1][1])
+		var dir := (b - a).normalized()
+		var right := Vector3(-dir.z, 0, dir.x)
+		# نقطة بعد التقاطع + نقطة قبل التقاطع التالي (في الحارة اليمنى)
+		_auto_wps.append({"pos": a + dir * 10.0 + right * CityBuilder.LANE_OFFSET, "stop": -1})
+		if stops_by_seg.has(seg):
+			var idx: int = stops_by_seg[seg]
+			var stop := stops[idx]
+			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -3.2, "stop": idx})
+		_auto_wps.append({"pos": b - dir * 10.0 + right * CityBuilder.LANE_OFFSET, "stop": -1})
+	# ابدأ من أقرب نقطة أمام الباص
+	_auto_i = 0
+	var best := 1e9
+	for i in range(_auto_wps.size()):
+		var d: float = bus.global_position.distance_to(_auto_wps[i]["pos"])
+		if d < best:
+			best = d
+			_auto_i = i
+
 func _autopilot_drive(delta: float) -> void:
-	_auto_t += delta
-	if next_stop_idx >= stops.size():
-		return
-	var stop := stops[next_stop_idx]
-	var target := stop.global_position + stop.global_transform.basis.x * -3.2
-	var to := target - bus.global_position
-	to.y = 0
-	var fwd := -bus.global_transform.basis.z
-	var right := bus.global_transform.basis.x
-	var dist := to.length()
-	var steer := clampf(to.normalized().dot(right) * 2.0, -1.0, 1.0)
-	bus.steer_input = steer
-	if dist > 10.0:
-		bus.throttle_input = 1.0 if bus.speed_kmh < 35 else 0.0
-		bus.brake_input = 0.0
-	else:
+	if _auto_wps.is_empty():
+		_build_autopilot_waypoints()
+	if _auto_i >= _auto_wps.size():
 		bus.throttle_input = 0.0
 		bus.brake_input = 1.0
-		if bus.speed_kmh < 1.0 and not bus.doors_open and _at_stop == stop:
+		return
+	var wp: Dictionary = _auto_wps[_auto_i]
+	var target: Vector3 = wp["pos"]
+	var is_stop: bool = int(wp["stop"]) >= 0 and int(wp["stop"]) == next_stop_idx
+	var to := target - bus.global_position
+	to.y = 0
+	var dist := to.length()
+	var fwd := -bus.global_transform.basis.z
+	var right := bus.global_transform.basis.x
+	var ahead := to.normalized().dot(fwd)
+	var steer := clampf(to.normalized().dot(right) * 2.5, -1.0, 1.0)
+	if ahead < 0.0:
+		steer = 1.0 if steer >= 0.0 else -1.0
+	bus.steer_input = steer
+	# في وضع الانتظار عند المحطة
+	if _auto_wait > 0.0:
+		_auto_wait -= delta
+		bus.throttle_input = 0.0
+		bus.brake_input = 1.0
+		if _auto_wait <= 0.0 and bus.doors_open:
 			bus.toggle_doors()
-	if bus.doors_open and _stop_handled and _auto_t > 2.0:
-		bus.toggle_doors()
-		_auto_t = 0.0
+			_auto_i += 1
+		return
+	var target_speed := 30.0
+	if absf(steer) > 0.5:
+		target_speed = 14.0
+	if is_stop:
+		target_speed = clampf(dist * 2.5, 4.0, 22.0)
+	if dist < (2.5 if is_stop else 6.0):
+		if is_stop:
+			bus.throttle_input = 0.0
+			bus.brake_input = 1.0
+			if bus.speed_kmh < 1.5:
+				if not bus.doors_open:
+					bus.toggle_doors()
+				_auto_wait = 3.0
+			return
+		_auto_i += 1
+		return
+	if bus.speed_kmh < target_speed:
+		bus.throttle_input = 1.0
+		bus.brake_input = 0.0
+	elif bus.speed_kmh > target_speed + 6.0:
+		bus.throttle_input = 0.0
+		bus.brake_input = 0.6
+	else:
+		bus.throttle_input = 0.0
+		bus.brake_input = 0.0

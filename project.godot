@@ -54,3 +54,21 @@ lights_and_shadows/directional_shadow/size=2048
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
 lights_and_shadows/directional_shadow/size.mobile=1024
 environment/defaults/default_clear_color=Color(0.53, 0.75, 0.92, 1)
+
+[debug]
+
+gdscript/warnings/inference_on_variant=1
+gdscript/warnings/untyped_declaration=0
+gdscript/warnings/unsafe_method_access=0
+gdscript/warnings/unsafe_property_access=0
+gdscript/warnings/unsafe_call_argument=0
+gdscript/warnings/return_value_discarded=0
+gdscript/warnings/integer_division=0
+gdscript/warnings/narrowing_conversion=0
+gdscript/warnings/shadowed_variable=0
+gdscript/warnings/shadowed_variable_base_class=0
+gdscript/warnings/unused_parameter=0
+gdscript/warnings/unused_variable=0
+gdscript/warnings/confusable_local_declaration=0
+gdscript/warnings/standalone_ternary=0
+gdscript/warnings/standalone_expression=0

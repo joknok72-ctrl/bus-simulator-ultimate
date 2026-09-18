@@ -66,8 +66,8 @@ func _build(night: bool) -> void:
 	_box(Vector3(0.08, 0.6, 0.9), Vector3(-0.6, 3.2, -2.6), sign_mat)
 	_label = Label3D.new()
 	_label.text = stop_name
-	_label.font_size = 64
-	_label.pixel_size = 0.006
+	_label.font_size = 72
+	_label.pixel_size = 0.012
 	_label.position = Vector3(-0.4, 3.9, -2.6)
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.outline_size = 12
@@ -168,7 +168,7 @@ func evaluate_parking(bus: Bus) -> Dictionary:
 	var door_world := bus.door_position()
 	var local := to_local(door_world)
 	# الباب يجب أن يكون قريباً من الرصيف (x ≈ -1.0) وداخل طول المنطقة
-	var lateral := absf(local.x - (-1.0))
+	var lateral := absf(local.x - (-2.0))
 	var longitudinal := absf(local.z)
 	var angle := absf(wrapf(bus.global_rotation.y - global_rotation.y, -PI, PI))
 	# اتجاه الباص يجب أن يكون موازياً للمحطة (المقدمة نحو -Z المحلي)
@@ -176,9 +176,9 @@ func evaluate_parking(bus: Bus) -> Dictionary:
 	var score := 0
 	if longitudinal <= _zone_len * 0.5 + 2.0 and lateral <= 3.5:
 		score = 1
-		if lateral <= 1.6 and longitudinal <= 4.0 and angle < 0.25:
+		if lateral <= 1.3 and longitudinal <= 3.5 and angle < 0.25:
 			score = 2
-		if lateral <= 0.8 and longitudinal <= 2.0 and angle < 0.12:
+		if lateral <= 0.7 and longitudinal <= 1.8 and angle < 0.12:
 			score = 3
 	return {"score": score, "lateral": lateral, "longitudinal": longitudinal, "angle": angle}
 

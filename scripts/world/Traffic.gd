@@ -129,7 +129,7 @@ func _place_car(car: Dictionary) -> void:
 	if car["horizontal"]:
 		# يسير على محور X؛ الحارة اليمنى بالنسبة لاتجاهه
 		node.position = Vector3(along, 0.0, c + LANE * d)
-		node.rotation.y = PI / 2 if d > 0 else -PI / 2
+		node.rotation.y = -PI / 2 if d > 0 else PI / 2
 	else:
 		node.position = Vector3(c - LANE * d, 0.0, along)
 		node.rotation.y = 0.0 if d < 0 else PI
@@ -271,11 +271,10 @@ func _should_stop_for_light(car: Dictionary) -> bool:
 	var d: float = car["dir"]
 	var along: float = car["along"]
 	# التقاطع القادم على مساره
-	var next := (floor((along + BLOCK * 2.0) / BLOCK) + (1 if d > 0 else 0)) * BLOCK - BLOCK * 2.0
+	var next: float = (floorf((along + BLOCK * 2.0) / BLOCK) + (1.0 if d > 0 else 0.0)) * BLOCK - BLOCK * 2.0
 	if d < 0:
-		next = ceil((along + BLOCK * 2.0) / BLOCK - 1.0) * BLOCK - BLOCK * 2.0 + BLOCK * 0.0
-		next = (floor((along + BLOCK * 2.0) / BLOCK)) * BLOCK - BLOCK * 2.0
-	var dist := (next - along) * d
+		next = floorf((along + BLOCK * 2.0) / BLOCK) * BLOCK - BLOCK * 2.0
+	var dist: float = (next - along) * d
 	if dist < 9.0 and dist > 6.0:
 		var cell := Vector2i.ZERO
 		var stop_pos := Vector3.ZERO

@@ -47,11 +47,11 @@ func _clear_screen() -> void:
 func _screen(bg := true) -> Control:
 	_clear_screen()
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if bg:
 		var cr := ColorRect.new()
 		cr.color = C_BG
-		cr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		cr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		root.add_child(cr)
 	ui_layer.add_child(root)
 	current_screen = root
@@ -108,7 +108,7 @@ func _card(col := C_PANEL) -> PanelContainer:
 
 func _vbox(parent: Control, margin := 28, sep := 16) -> VBoxContainer:
 	var mc := MarginContainer.new()
-	mc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	mc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mc.add_theme_constant_override("margin_left", margin)
 	mc.add_theme_constant_override("margin_right", margin)
 	mc.add_theme_constant_override("margin_top", margin + 20)
@@ -159,7 +159,7 @@ func _bus_preview(bus_id: String, w := 200.0, h := 90.0) -> Control:
 		c.draw_rect(Rect2(x0, h * 0.2, bw, h * 0.08), Color(0.95, 0.95, 0.95))
 		var n := 2 if len_ratio < 0.8 else 3
 		for i in range(n):
-			var wx := x0 + bw * (0.15 + 0.7 * i / max(n - 1, 1))
+			var wx: float = x0 + bw * (0.15 + 0.7 * float(i) / float(max(n - 1, 1)))
 			c.draw_circle(Vector2(wx, h * 0.78), h * 0.11, Color(0.1, 0.1, 0.12))
 			c.draw_circle(Vector2(wx, h * 0.78), h * 0.05, Color(0.7, 0.7, 0.72))
 		c.draw_rect(Rect2(x0 + bw - 8, h * 0.45, 8, h * 0.12), Color(1, 0.95, 0.7))
@@ -182,7 +182,7 @@ func show_menu() -> void:
 	gt.fill_from = Vector2(0, 0)
 	gt.fill_to = Vector2(0, 1)
 	grad.texture = gt
-	grad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	grad.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	grad.stretch_mode = TextureRect.STRETCH_SCALE
 	root.add_child(grad)
 	# "طريق" في الأسفل
@@ -201,7 +201,7 @@ func show_menu() -> void:
 	root.add_child(line)
 	# مبانٍ سيلويت
 	var sky := Control.new()
-	sky.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sky.draw.connect(func():
 		var s := sky.size
 		var rng := RandomNumberGenerator.new()
@@ -302,7 +302,7 @@ func show_garage(garage_only := false) -> void:
 	for id in ["mini", "city", "coach", "articulated"]:
 		var d := BusData.get_bus(id)
 		var owned := GameState.owns_bus(id)
-		var selected := GameState.current_bus == id
+		var selected: bool = (GameState.current_bus == id)
 		var locked := GameState.level < int(d["unlock_level"])
 		var card := _card(Color(0.13, 0.22, 0.32) if selected else C_PANEL)
 		if selected:
@@ -433,10 +433,10 @@ func show_pause() -> void:
 	root.process_mode = Node.PROCESS_MODE_ALWAYS
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.6)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(dim)
 	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(center)
 	var card := _card()
 	card.custom_minimum_size = Vector2(440, 0)
@@ -478,7 +478,7 @@ func show_results(result: Dictionary) -> void:
 	var root := _screen(false)
 	var dim := ColorRect.new()
 	dim.color = Color(0.03, 0.05, 0.1, 0.85)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(dim)
 	var vb := _vbox(root, 28, 12)
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -536,7 +536,7 @@ func show_settings(from_pause := false) -> void:
 	if from_pause:
 		var dim := ColorRect.new()
 		dim.color = Color(0, 0, 0, 0.85)
-		dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		root.add_child(dim)
 	var vb := _vbox(root, 28, 14)
 	var top := HBoxContainer.new()
@@ -632,15 +632,21 @@ func _run_test_flow() -> void:
 					driving._on_camera_toggle()
 			"drive_long":
 				start_driving(GameState.selected_route)
+				var t0 := Time.get_ticks_msec()
 				var frames := 0
 				var snap_i := 0
-				while frames < 3000 and driving and not driving._finished:
+				var last_snap := t0
+				while Time.get_ticks_msec() - t0 < 150000 and driving and not driving._finished:
 					await get_tree().process_frame
 					frames += 1
-					if frames % 400 == 0:
+					if Time.get_ticks_msec() - last_snap > 20000:
+						last_snap = Time.get_ticks_msec()
 						await _snap("drive_%02d" % snap_i, 1)
 						snap_i += 1
+						if driving:
+							print("DBG t=", (Time.get_ticks_msec() - t0) / 1000.0, " fps=", Engine.get_frames_per_second(), " pos=", driving.bus.global_position, " spd=", driving.bus.speed_kmh, " next=", driving.next_stop_idx, " wp=", driving._auto_i, "/", driving._auto_wps.size(), " pax=", driving.passengers, " money=", GameState.money)
 				await _snap("drive_end", 5)
+				print("DBG frames=", frames, " finished=", (driving._finished if driving else false))
 			"pause":
 				if driving:
 					show_pause()

@@ -252,8 +252,8 @@ func _build_lamps(parent: Node) -> void:
 	for k in range(N):
 		var c := (k - 2) * BLOCK
 		for s in range(-2, 3):
-			for off in [-1.0, 1.0]:
-				var p := s * BLOCK + BLOCK * 0.25 * off
+			for off: float in [-1.0, 1.0]:
+				var p: float = float(s) * BLOCK + BLOCK * 0.25 * float(off)
 				xf.append(Transform3D(Basis.IDENTITY, Vector3(p, 3.25, c + (ROAD_W * 0.5 + 0.6) * off)))
 	mm.instance_count = xf.size()
 	for i in range(xf.size()):

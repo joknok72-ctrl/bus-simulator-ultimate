@@ -28,7 +28,7 @@ const COL_BAD := Color(0.95, 0.35, 0.3)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build()
 
 func _panel(pos: Vector2, sz: Vector2, col := COL_BG, radius := 18) -> PanelContainer:
@@ -152,7 +152,7 @@ func _build() -> void:
 	# ---- رسائل عائمة
 	msg_root = Control.new()
 	msg_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	msg_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	msg_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(msg_root)
 	big_msg = _label("", 44, COL_ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 	big_msg.set_anchors_preset(Control.PRESET_CENTER_TOP)

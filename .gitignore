@@ -1,0 +1,15 @@
+# Godot 4
+.godot/
+*.import
+.import/
+# Builds
+build/
+*.apk
+*.aab
+*.tar.gz
+*.zip
+# OS
+.DS_Store
+Thumbs.db
+# Local screenshots
+/shots/
