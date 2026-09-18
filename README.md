@@ -5,8 +5,18 @@
 > بُنيت على فلسفة: **"اصنع لعبة ممتعة في أبسط أشكالها أولاً، ثم ضع فوقها الجرافيك والصوت."**
 > كل شيء في اللعبة (المدينة، الباصات، الأصوات، الواجهة) مولّد برمجياً — لا ملفات 3D أو صوتيات خارجية. الحجم صغير والأداء مناسب للهواتف المتوسطة.
 
+## 📲 نزّل اللعبة على هاتفك الآن (APK جاهز)
+[![Download APK](https://img.shields.io/badge/⬇_تنزيل_APK-Android-brightgreen?style=for-the-badge)](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/download/latest/BusSimulatorUltimate.apk)
+[![Build](https://github.com/joknok72-ctrl/bus-simulator-ultimate/actions/workflows/build-android.yml/badge.svg)](https://github.com/joknok72-ctrl/bus-simulator-ultimate/actions)
+
+**الرابط المباشر**: https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/download/latest/BusSimulatorUltimate.apk
+
+كل `push` على `main` يبني APK جديداً تلقائياً عبر GitHub Actions (Godot 4.7.2 + Android SDK) وينشره في [Releases](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/tag/latest).
+عند التثبيت فعّل "السماح بالتثبيت من مصادر غير معروفة".
+
 ## 🔗 الروابط
 - **GitHub**: https://github.com/joknok72-ctrl/bus-simulator-ultimate
+- **Releases (APK)**: https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/tag/latest
 - **المحرك المطلوب**: Godot 4.7.2-stable (عادي، ليس .NET)
 
 ## 📱 الـ Stack المختار ولماذا
