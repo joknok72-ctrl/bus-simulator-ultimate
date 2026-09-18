@@ -154,12 +154,15 @@ func _build() -> void:
 	msg_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	msg_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(msg_root)
-	big_msg = _label("", 44, COL_ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	big_msg = _label("", 36, COL_ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	big_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	big_msg.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	big_msg.anchor_left = 0.0
 	big_msg.anchor_right = 1.0
-	big_msg.offset_top = 300
-	big_msg.offset_bottom = 380
+	big_msg.offset_left = 30
+	big_msg.offset_right = -30
+	big_msg.offset_top = 380
+	big_msg.offset_bottom = 480
 	big_msg.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	big_msg.add_theme_constant_override("outline_size", 8)
 	big_msg.modulate.a = 0.0
