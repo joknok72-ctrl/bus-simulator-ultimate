@@ -490,6 +490,7 @@ var _auto_i := 0
 var _auto_wait := 0.0
 var _stuck_t := 0.0
 var _reverse_t := 0.0
+var _auto_total_stuck := 0.0
 
 func _build_autopilot_waypoints() -> void:
 	_auto_wps.clear()
@@ -555,6 +556,12 @@ func _autopilot_drive(delta: float) -> void:
 	var to := target - bus.global_position
 	to.y = 0
 	var dist := to.length()
+	# خرج عن المسار كثيراً أو انحشر طويلاً: استخدم "إعادة للطريق" (نفس أداة اللاعب)
+	_auto_total_stuck = _auto_total_stuck + delta if bus.speed_kmh < 3.0 and _auto_wait <= 0.0 else 0.0
+	if dist > 45.0 or _auto_total_stuck > 8.0:
+		_auto_total_stuck = 0.0
+		reset_bus_to_road()
+		return
 	var fwd := bus.global_transform.basis.z
 	var right := -bus.global_transform.basis.x
 	var ahead := to.normalized().dot(fwd)
@@ -577,7 +584,7 @@ func _autopilot_drive(delta: float) -> void:
 	if _auto_wait > 0.0:
 		_auto_wait -= delta
 		bus.throttle_input = 0.0
-		bus.brake_input = 1.0
+		bus.brake_input = 0.0
 		if _auto_wait <= 0.0 and bus.doors_open:
 			bus.toggle_doors()
 			_auto_i += 1
@@ -609,11 +616,13 @@ func _autopilot_drive(delta: float) -> void:
 	var in_zone := false
 	if is_stop and _at_stop and _at_stop.index == next_stop_idx and bus.speed_kmh < 6.0:
 		in_zone = int(_at_stop.evaluate_parking(bus)["score"]) > 0
-	if dist < (2.0 if is_stop else 4.5) or (is_stop and in_zone and dist < 6.0):
+	if dist < (2.0 if is_stop else 4.5) or (is_stop and in_zone and dist < 8.0):
 		if is_stop:
 			bus.throttle_input = 0.0
-			bus.brake_input = 1.0
-			if bus.speed_kmh < 1.5:
+			bus.brake_input = 0.0
+			bus.handbrake = true
+			if bus.speed_kmh < 3.5:
+				bus.handbrake = false
 				if not bus.doors_open:
 					bus.toggle_doors()
 				_auto_wait = 3.0
