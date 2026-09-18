@@ -494,14 +494,15 @@ func _build_autopilot_waypoints() -> void:
 			var stop := stops[idx]
 			_auto_wps.append({"pos": stop.global_position + stop.global_transform.basis.x * -3.2, "stop": idx})
 		_auto_wps.append({"pos": b - dir * 10.0 + right * CityBuilder.LANE_OFFSET, "stop": -1})
-	# ابدأ من أقرب نقطة أمام الباص
+	# ابدأ من أول نقطة أمام الباص (تجاهل ما خلفه)
 	_auto_i = 0
-	var best := 1e9
+	var fwd := -bus.global_transform.basis.z
 	for i in range(_auto_wps.size()):
-		var d: float = bus.global_position.distance_to(_auto_wps[i]["pos"])
-		if d < best:
-			best = d
+		var to: Vector3 = _auto_wps[i]["pos"] - bus.global_position
+		to.y = 0.0
+		if to.dot(fwd) > 2.0:
 			_auto_i = i
+			break
 
 func _autopilot_drive(delta: float) -> void:
 	if _auto_wps.is_empty():
@@ -523,6 +524,10 @@ func _autopilot_drive(delta: float) -> void:
 	if ahead < 0.0:
 		steer = 1.0 if steer >= 0.0 else -1.0
 	bus.steer_input = steer
+	# لو النقطة خلفنا وقريبة: تجاوزها بدل الدوران الكامل
+	if ahead < -0.2 and dist < 25.0 and not is_stop:
+		_auto_i += 1
+		return
 	# في وضع الانتظار عند المحطة
 	if _auto_wait > 0.0:
 		_auto_wait -= delta
