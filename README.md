@@ -1,147 +1,205 @@
-# 🚌 Bus Simulator Ultimate — محاكي الباص المطلق
+# City Bus Driver — سائق حافلة المدينة
 
-لعبة محاكاة قيادة باص للموبايل (Android — وضع عمودي، يد واحدة) مبنية بمحرك **Godot Engine 4.7.2-stable** بلغة **GDScript**.
+لعبة قيادة حافلات ثلاثية الأبعاد أصلية للهواتف (Android) مبنية بمحرك **Godot Engine 4.7.2-stable**.
+An original 3D city-bus driving game for Android phones, built with **Godot Engine 4.7.2-stable**
+(mobile renderer, touch-first UI, Arabic + English).
 
-> بُنيت على فلسفة: **"اصنع لعبة ممتعة في أبسط أشكالها أولاً، ثم ضع فوقها الجرافيك والصوت."**
-> كل شيء في اللعبة (المدينة، الباصات، الأصوات، الواجهة) مولّد برمجياً — لا ملفات 3D أو صوتيات خارجية. الحجم صغير والأداء مناسب للهواتف المتوسطة.
+> كل الأصول (النماذج، الواجهة، الأصوات، الأيقونات) مولّدة برمجياً داخل المشروع أو أصلية؛ لا توجد أي أصول منسوخة من ألعاب تجارية.
+> All assets are generated procedurally by the project's own scripts or are original; nothing is copied from commercial games.
 
-## 📲 نزّل اللعبة على هاتفك الآن (APK جاهز)
-[![Download APK](https://img.shields.io/badge/⬇_تنزيل_APK-Android-brightgreen?style=for-the-badge)](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/download/latest/BusSimulatorUltimate.apk)
-[![Build](https://github.com/joknok72-ctrl/bus-simulator-ultimate/actions/workflows/build-android.yml/badge.svg)](https://github.com/joknok72-ctrl/bus-simulator-ultimate/actions)
+---
 
-**الرابط المباشر**: https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/download/latest/BusSimulatorUltimate.apk
+## التنزيل | Download (APK)
 
-كل `push` على `main` يبني APK جديداً تلقائياً عبر GitHub Actions (Godot 4.7.2 + Android SDK) وينشره في [Releases](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/tag/latest).
-عند التثبيت فعّل "السماح بالتثبيت من مصادر غير معروفة".
+[![تنزيل CityBusDriver.apk](https://img.shields.io/badge/⬇_تنزيل_CityBusDriver.apk-Android_arm64-blue?style=for-the-badge)](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/download/citybusdriver-latest/CityBusDriver.apk)
+[![Build CityBusDriver APK](https://github.com/joknok72-ctrl/bus-simulator-ultimate/actions/workflows/build-citybusdriver.yml/badge.svg)](https://github.com/joknok72-ctrl/bus-simulator-ultimate/actions/workflows/build-citybusdriver.yml)
 
-## 🔗 الروابط
-- **GitHub**: https://github.com/joknok72-ctrl/bus-simulator-ultimate
-- **Releases (APK)**: https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/tag/latest
-- **المحرك المطلوب**: Godot 4.7.2-stable (عادي، ليس .NET)
+**الرابط المباشر:** https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/download/citybusdriver-latest/CityBusDriver.apk
 
-## 📱 الـ Stack المختار ولماذا
-| العنصر | الاختيار | السبب |
-|---|---|---|
-| المحرك | Godot 4.7.2-stable | مفتوح المصدر، خفيف، تصدير Android مباشر، مناسب للموبايل |
-| اللغة | GDScript (100%) | أسرع لغة تطوير داخل Godot، بدون تعقيدات بناء C#/C++ |
-| الفيزياء | Jolt Physics (مدمج) | أسرع وأثبت من الفيزياء القديمة، مناسب للسيارات |
-| الرندر | Mobile renderer + GL Compatibility fallback | أفضل أداء على الهواتف |
-| الصوت | WAV مولّد بـ Python/NumPy (`tools/gen_audio.py`) | لا حقوق ملكية، حجم صغير |
-| الحفظ | JSON في `user://save.json` | بسيط وآمن |
+يُبنى الـ APK تلقائياً عبر GitHub Actions (`.github/workflows/build-citybusdriver.yml`) بمحرك **Godot 4.7.2-stable بالضبط** عند كل دفعة (push) إلى الفرع `main` — مشروع Godot موجود مباشرة في جذر المستودع — ويُنشر في الإصدار [`citybusdriver-latest`](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/tag/citybusdriver-latest). النسخة نسخة تصحيح (debug) موقّعة بمفتاح CI مؤقّت؛ عند التثبيت فعّل "التثبيت من مصادر غير معروفة". توجد أيضاً نسخة مبنية مسبقاً ومحفوظة داخل المستودع: [`build/CityBusDriver-debug.apk`](https://github.com/joknok72-ctrl/bus-simulator-ultimate/raw/main/build/CityBusDriver-debug.apk) (تفاصيلها في [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt)).
 
-## 🎮 حلقة اللعب الأساسية (Core Loop)
-```
-تقود نحو المحطة ← تصطف بجانب الرصيف (Perfect/Good/OK) ← تفتح الأبواب
-← ركاب ينزلون/يصعدون + مال فوري (+٥ ج) ← تغلق الأبواب ← المحطة التالية
-← نهاية الخط: مكافأة + نجوم + XP ← الجراج: شراء باص/ترقية ← خط جديد
-```
+The APK is built automatically by GitHub Actions (`.github/workflows/build-citybusdriver.yml`) with **exactly Godot 4.7.2-stable** on every push to `main` — the Godot project lives directly at the repository root — and published to the [`citybusdriver-latest`](https://github.com/joknok72-ctrl/bus-simulator-ultimate/releases/tag/citybusdriver-latest) release. It is a debug build signed with a throw-away CI key; enable "install from unknown sources" on the phone. A pre-built copy is also committed in the repository: [`build/CityBusDriver-debug.apk`](https://github.com/joknok72-ctrl/bus-simulator-ultimate/raw/main/build/CityBusDriver-debug.apk) (details in [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt)).
 
-### ما الذي يجعلها ممتعة (Game Feel)
-- **دقة الاصطفاف**: كل توقف تحدٍّ صغير له درجة ومكافأة فورية.
-- **راحة الركاب**: فرملة مفاجئة أو انعطاف حاد يخفض الرضا ← تذاكر أقل. توتر ممتع بين "أسرع" و"أنعم".
-- **إشارات المرور + سيارات AI**: عبور إشارة حمراء أو حادث = غرامة.
-- **ردود فعل**: أضواء فرامل، هزّة كاميرا، اهتزاز الجهاز، صوت محرك يتبع السرعة، أرقام تطفو.
+---
 
-## ✅ الميزات المكتملة
-- [x] فيزياء باص `VehicleBody3D` مع 4 باصات (ميني، مدينة، سياحي، مفصلي) بخصائص مختلفة
-- [x] مدينة برمجية 5×5 تقاطعات، مبانٍ باستيل، أشجار، أعمدة إنارة، أرصفة بتصادم
-- [x] 5 خطوط (نهار / ليل / مساء ممطر) بمحطات بأسماء عربية
-- [x] محطات بركاب منتظرين، تقييم اصطفاف 3 درجات، سهم ولافتة للمحطة القادمة
-- [x] 14 سيارة AI + إشارات مرور تعمل + كشف عبور الإشارة الحمراء
-- [x] تحكم لمس بيد واحدة: عجلة قيادة دائرية، بنزين/فرامل، أبواب، كلاكس، كاميرا (3 أوضاع)
-- [x] HUD: سرعة، حد السرعة، مال، محطة قادمة ومسافة، ركاب، رضا، خريطة صغيرة
-- [x] اقتصاد: مال، XP، 12 مستوى، شراء باصات، 4 ترقيات متدرجة
-- [x] قوائم كاملة: رئيسية، جراج/خطوط، إيقاف، نتائج (نجوم)، إعدادات
-- [x] 15 مؤثراً صوتياً + موسيقى + جو مدينة — كلها مولّدة برمجياً
-- [x] حفظ/تحميل تلقائي، إعادة تعيين التقدم
-- [x] استقرار: مقاومة انقلاب + تعافٍ تلقائي + زر "إعادة للطريق"
-- [x] وضع اختبار آلي (`--test`) يقود الباص ويأخذ لقطات شاشة للتحقق البصري
-- [x] إعداد تصدير Android (`export_presets.cfg`)
+## لقطات | Screenshots
 
-## 🚧 غير مكتمل / أفكار للتطوير
-- [ ] أصوات ركاب (شكر/شكوى) ونظام تعليقات
-- [ ] مهام يومية وإنجازات
-- [ ] تخصيص ألوان الباص وشعارات
-- [ ] طقس ديناميكي أكثر (ثلج، ضباب)
-- [ ] لوحة متصدرين محلية
-- [ ] دعم وضع أفقي اختياري
-
-## 📂 بنية المشروع
-```
-webapp/
-├── project.godot            # إعدادات المشروع (Mobile renderer, Jolt, Portrait)
-├── export_presets.cfg       # إعداد تصدير Android
-├── icon.svg
-├── scenes/Main.tscn         # المشهد الوحيد؛ كل شيء يُبنى برمجياً
-├── scripts/
-│   ├── Main.gd              # إدارة الحالات + كل القوائم + تدفق الاختبار
-│   ├── autoload/
-│   │   ├── GameState.gd     # المال/XP/الباصات/الترقيات/الحفظ
-│   │   ├── AudioFX.gd       # مدير الصوت + المحرك + الموسيقى
-│   │   └── Haptics.gd       # اهتزاز الجهاز
-│   ├── data/
-│   │   ├── BusData.gd       # مواصفات الباصات والترقيات
-│   │   └── RouteData.gd     # الخطوط والمحطات
-│   ├── world/
-│   │   ├── DrivingScene.gd  # منسّق Core Loop + كاميرا + بيئة
-│   │   ├── Bus.gd           # فيزياء الباص + جسمه + أبوابه + راحة الركاب
-│   │   ├── BusStop.gd       # المحطة + تقييم الاصطفاف + الركاب
-│   │   ├── CityBuilder.gd   # بناء المدينة (MultiMesh للأداء)
-│   │   └── Traffic.gd       # سيارات AI + إشارات مرور
-│   └── ui/
-│       ├── TouchControls.gd # عجلة القيادة والأزرار (مرسومة برمجياً)
-│       └── HUD.gd           # واجهة القيادة + الخريطة الصغيرة
-├── audio/                   # 15 ملف WAV مولّد
-├── tools/
-│   ├── gen_audio.py         # مولّد الأصوات
-│   └── run_test.sh          # تشغيل الاختبار الآلي بلقطات شاشة
-└── docs/GDD.md              # وثيقة تصميم اللعبة
-```
-
-## 🕹️ التحكم
-| موبايل | كيبورد (للاختبار على الكمبيوتر) |
+| | |
 |---|---|
-| سحب العجلة يسار الشاشة | ← → أو A / D |
-| ▲ بنزين | ↑ أو W |
-| ▼ فرامل (وعند التوقف = رجوع للخلف) | ↓ أو S |
-| 🚪 الأبواب | E أو Space |
-| 📢 كلاكس | H |
-| 📷 تغيير الكاميرا | C |
-| II إيقاف | Esc أو P |
+| ![Main menu (English)](docs/screenshots/01_menu_home_en.png) | ![القائمة الرئيسية (عربي)](docs/screenshots/07_menu_home_ar.png) |
+| ![Driving – chase camera](docs/screenshots/09_game_driving_chase.png) | ![Night route](docs/screenshots/12_game_night_route.png) |
+| ![Bus stop – boarding](docs/screenshots/11_game_bus_stop_boarding.png) | ![Route selection](docs/screenshots/02_menu_routes.png) |
 
-## 🛠️ التشغيل والبناء
-### فتح المشروع
-1. نزّل [Godot 4.7.2-stable](https://godotengine.org/download) (الإصدار العادي، ليس .NET).
-2. Import → اختر `project.godot` → Run (F5).
+اللقطات مأخوذة من المحرّك 4.7.2-stable نفسه (`tools/screenshot.gd` تحت Xvfb + Mesa). / Captured from the real engine build
+(`tools/screenshot.gd` under Xvfb + Mesa software OpenGL).
 
-### تصدير APK للأندرويد
-1. في Godot: **Editor → Manage Export Templates → Download and Install** (نسخة 4.7.2).
-2. ثبّت Android SDK + JDK 17 وحدد مساراتهم في **Editor Settings → Export → Android**.
-3. أنشئ keystore للتصحيح (أو دع Godot ينشئه).
-4. **Project → Export → Android → Export Project** → `build/BusSimulatorUltimate.apk`.
+---
 
-### اختبار آلي بلقطات شاشة (Linux)
-```bash
-python3 tools/gen_audio.py                 # إعادة توليد الأصوات (اختياري)
-tools/run_test.sh menu,garage,settings,drive,pause,results 720x1280
-tools/run_test.sh drive_long 360x640      # قيادة آلية طويلة
-# اللقطات في /tmp/shots
+## المحتوى | Contents
+
+1. [الميزات | Features](#الميزات--features)
+2. [طريقة اللعب والتحكم | Gameplay & controls](#طريقة-اللعب-والتحكم--gameplay--controls)
+3. [المتطلبات | Requirements](#المتطلبات--requirements)
+4. [التشغيل على الحاسوب | Run on desktop](#التشغيل-على-الحاسوب--run-on-desktop)
+5. [بناء APK لأندرويد | Build the Android APK](#بناء-apk-لأندرويد--build-the-android-apk)
+6. [التحقق والاختبارات | Validation & tests](#التحقق-والاختبارات--validation--tests)
+7. [بنية المشروع | Project structure](#بنية-المشروع--project-structure)
+8. [الرخص | Licenses](#الرخص--licenses)
+
+---
+
+## الميزات | Features
+
+| العربية | English |
+|---|---|
+| مدينة ثلاثية الأبعاد مولّدة برمجياً (شبكة طرق 5×5، مبانٍ، أرصفة، إنارة، أشجار) | Procedurally generated 3D city (5×5 road grid, buildings, sidewalks, street lights, trees) |
+| 4 خطوط حافلات بأوقات مختلفة من اليوم (نهار / غروب / ليل) تُفتح بالنجوم | 4 bus routes at different times of day (day / sunset / night), unlocked with stars |
+| محطات، ركاب ينتظرون ويصعدون/ينزلون، أبواب تُفتح وتُغلق | Bus stops, waiting passengers that board/alight, animated doors |
+| سيارات مرور، تصادمات تُخصم منها نقاط، حدّ سرعة مع تحذير | Traffic cars, collision penalties, speed limit with warning |
+| نتيجة ونجوم (1–3) وعملات لشراء ألوان (طلاءات) للحافلة من المرآب | Score, 1–3 stars and coins to buy bus liveries in the garage |
+| حفظ التقدّم محلياً (`user://save.cfg`) | Local save of progress (`user://save.cfg`) |
+| واجهة لمس كاملة: عجلة قيادة، أزرار، أو إمالة الهاتف (Accelerometer) | Full touch UI: steering wheel, buttons, or phone tilt (accelerometer) |
+| 3 كاميرات: تتبّع، مقعد السائق، من الأعلى | 3 cameras: chase, driver seat, top-down |
+| خريطة صغيرة، عدّاد سرعة، مؤقّت، سهم توجيه إلى المحطة التالية | Minimap, speedometer, timer, guide arrow to the next stop |
+| أصوات مولّدة برمجياً (محرك، بوق، أبواب، نقر) واهتزاز | Procedural audio (engine, horn, doors, clicks) and vibration |
+| عربي/إنجليزي مع اتجاه واجهة تلقائي (RTL) | Arabic/English with automatic RTL layout |
+| إعدادات: طريقة التحكم، الكاميرا، الجودة، الصوت، الاهتزاز، عكس الإمالة | Settings: control mode, camera, quality, sound, vibration, invert tilt |
+| صفحة "حول اللعبة والرخص" تعرض رخصة Godot ومكوّناتها الخارجية وخط Cairo | "About & licenses" page showing the Godot license, its third-party components and the Cairo font notice |
+
+---
+
+## طريقة اللعب والتحكم | Gameplay & controls
+
+**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع السهم والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التصادم أو تجاوز السرعة أو تفويت محطة يُخفض النتيجة.
+
+**Goal:** start at the first stop, stop at every bus stop on the route (follow the arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Collisions, speeding and missed stops reduce your score.
+
+| التحكم على الهاتف | Touch | لوحة المفاتيح (للتجربة على الحاسوب) | Keyboard (desktop testing) |
+|---|---|---|---|
+| عجلة القيادة / زرّا يسار–يمين / إمالة الهاتف | Steering wheel / left–right buttons / tilt | `A` `D` أو الأسهم | `A` `D` or arrows |
+| دوّاسة الوقود (يمين أسفل) | Gas pedal (bottom right) | `W` / `↑` | `W` / `↑` |
+| دوّاسة المكابح | Brake pedal | `S` / `↓` / `Space` | `S` / `↓` / `Space` |
+| زر الأبواب | Doors button | `E` | `E` |
+| زر البوق | Horn button | `H` | `H` |
+| زر الكاميرا | Camera button | `C` | `C` |
+| زر الإيقاف المؤقت | Pause button | `Esc` / `P` | `Esc` / `P` |
+
+طريقة التحكم تُختار من **الإعدادات** (عجلة – أزرار – إمالة). / Control mode is chosen in **Settings** (wheel – buttons – tilt).
+
+---
+
+## المتطلبات | Requirements
+
+* **Godot Engine 4.7.2-stable** بالضبط (المشروع مضبوط على `config/features = "4.7"`).
+  حمّل المحرّر الرسمي من `https://godotengine.org/download` — لا تستخدم إصداراً آخر.
+* لبناء APK: JDK 17، Android SDK (`platform-tools` + `build-tools`) وقوالب التصدير الرسمية 4.7.2 لأندرويد.
+  التفاصيل الكاملة في [`docs/ANDROID_BUILD.md`](docs/ANDROID_BUILD.md).
+
+* Exactly **Godot Engine 4.7.2-stable** (`config/features = "4.7"`). Download the official editor from
+  `https://godotengine.org/download`. Do not substitute another version.
+* For the APK: JDK 17, an Android SDK (`platform-tools` + `build-tools`) and the official 4.7.2 Android export
+  templates. See [`docs/ANDROID_BUILD.md`](docs/ANDROID_BUILD.md).
+
+---
+
+## التشغيل على الحاسوب | Run on desktop
+
+```sh
+# افتح المشروع في المحرّر (استيراد أول مرة يستغرق ثوانٍ قليلة)
+Godot_v4.7.2-stable_linux.x86_64 --path /path/to/CityBusDriver --editor
+
+# أو شغّله مباشرة (الفأرة تُحاكي اللمس)
+Godot_v4.7.2-stable_linux.x86_64 --path /path/to/CityBusDriver
 ```
 
-## 🗄️ نموذج البيانات (الحفظ)
-```json
-{
-  "money": 300, "xp": 0, "level": 1,
-  "owned_buses": ["mini"], "current_bus": "mini",
-  "upgrades": {"engine": 0, "brakes": 0, "suspension": 0, "seats": 0},
-  "stats": {"passengers": 0, "routes": 0, "distance_km": 0, "perfect_stops": 0, "fines": 0, "earned": 0, "collisions": 0},
-  "settings": {"sfx": 0.9, "music": 0.5, "haptics": true, "camera": 0, "shadows": true, "steer_sensitivity": 1.0},
-  "route_records": {"line1": {"best": 0, "times": 0}},
-  "selected_route": "line1"
-}
+ملاحظة: في أول استيراد لمستودع نظيف يطبع المحرّر بعض أخطاء "Cannot open file ... .translation / FontFile" لأن الموارد المستوردة لم تُنشأ بعد؛ تختفي عند التشغيل الثاني. / On the very first import of a clean checkout Godot prints a few "Cannot open file … .translation / FontFile" errors because imported resources do not exist yet; they disappear on the second run.
+
+---
+
+## بناء APK لأندرويد | Build the Android APK
+
+الطريقة المختصرة (Linux، بعد تجهيز JDK 17 وAndroid SDK حسب `docs/ANDROID_BUILD.md`):
+
+```sh
+export GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_HOME=/opt/android-sdk
+sh tools/build_android.sh            # يحمّل قوالب أندرويد الرسمية إن لزم، يستورد المشروع ويصدّر build/CityBusDriver-debug.apk
 ```
 
-## 📊 الحالة
-- **المنصة المستهدفة**: Android (Portrait) — يعمل أيضاً على سطح المكتب للاختبار
-- **المحرك**: Godot 4.7.2-stable (مثبّت حرفياً على هذا الإصدار)
-- **آخر تحديث**: 2026-09-18
+للنسخة النهائية الموقّعة (release) مرّر مفتاح التوقيع الخاص بك:
+
+```sh
+RELEASE_KEYSTORE=/secure/my-release.keystore RELEASE_KEY_ALIAS=upload RELEASE_KEY_PASS='***' sh tools/build_android.sh
+```
+
+Short version (Linux, after preparing JDK 17 and the Android SDK as in `docs/ANDROID_BUILD.md`): run
+`sh tools/build_android.sh`. It fetches the official Android templates if missing, imports the project and exports
+`build/CityBusDriver-debug.apk`; pass `RELEASE_KEYSTORE`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASS` to also export a signed
+release APK. The Android preset (`export_presets.cfg`) targets **arm64-v8a**, package `com.khaled.citybusdriver`,
+version `1.0.0` (code 1), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
+
+---
+
+## التحقق والاختبارات | Validation & tests
+
+`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (45 فحصاً: الترجمات، صفحات القائمة، توليد المدينة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب، التصادمات، إنهاء الخط والنتيجة)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
+
+`tools/validate.sh` runs, with Godot 4.7.2-stable: the import, the headless smoke test `tests/smoke_test.gd`
+(45 checks: translations, menu pages, city generation, all four routes, driving/braking, stops and boarding, collisions,
+route completion and scoring) and a headless boot of the main scene.
+
+```sh
+GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
+```
+
+يشغّل GitHub Actions السكربت نفسه قبل تصدير الـ APK ويعرض النتيجة في ملخّص التشغيل. / GitHub Actions runs the same script before exporting the APK and shows the result in the run summary.
+
+آخر نتيجة مسجّلة (2026-09-25، Godot 4.7.2.stable.official) / last recorded result:
+`import errors = 0` · `45 checks, 0 failures – SMOKE TEST OK` · `boot exit 0` · debug APK exported and verified with
+`apksigner` — see [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and `build/logs/`.
+
+`tools/screenshot.gd` يلتقط لقطات حقيقية من اللعبة (يحتاج شاشة أو Xvfb):
+`xvfb-run -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 --resolution 1280x720 -s res://tools/screenshot.gd`
+
+> لم يُجرَّب التطبيق بعد على هاتف أندرويد فعلي (لا يوجد جهاز/محاكي في بيئة البناء). جرّبه على جهازك قبل النشر.
+> The APK has not yet been run on a physical Android device (no device/emulator in the build environment) — test it on your phone before publishing.
+
+---
+
+## بنية المشروع | Project structure
+
+```
+.github/workflows/       build-citybusdriver.yml — بناء APK تلقائي عبر GitHub Actions ونشره في citybusdriver-latest
+project.godot            إعدادات المشروع (Mobile renderer، أفقي، لمس، عربي/إنجليزي)
+export_presets.cfg       إعداد تصدير Android (arm64-v8a، com.khaled.citybusdriver)
+icon.svg                 أيقونة أصلية
+android/icons/           أيقونات المشغّل (عادية + adaptive)
+assets/fonts/            خط Cairo (OFL) — للعربية والإنجليزية
+assets/i18n/strings.csv  كل نصوص الواجهة (en / ar)
+assets/ui/splash.png     شاشة الإقلاع
+scenes/                  bus.tscn, game.tscn, ui/main_menu.tscn, ui/hud.tscn
+scripts/autoload/        GameState (حفظ/تقدّم/إعدادات)، AudioSynth (أصوات مولّدة)
+scripts/vehicle/         bus.gd (فيزياء الحافلة والأبواب)، camera_rig.gd
+scripts/world/           توليد المدينة، الخطوط، المحطات، الركاب، المرور، مصنع الشبكات
+scripts/ui/              القائمة، HUD، عناصر اللمس، الخريطة، العدّاد، الإيقاف، النتائج
+scripts/game.gd          منطق المهمّة (المحطات، النقاط، المؤقّت، النهاية)
+shaders/                 مظهر المباني والطرق
+theme/main_theme.tres    سمة الواجهة
+tests/smoke_test.gd      اختبار دخان بلا واجهة رسومية
+tools/                   build_android.sh, validate.sh, fetch_android_templates.py, screenshot.gd
+docs/ANDROID_BUILD.md    دليل تجهيز أندرويد والتصدير خطوة بخطوة
+docs/screenshots/        لقطات من اللعبة
+build/                   مخرجات البناء: CityBusDriver-debug.apk, BUILD_INFO.txt, logs/ (مُتجاهَلة من Godot عبر .gdignore)
+```
+
+---
+
+## الرخص | Licenses
+
+* كود المشروع ومشاهده وأصوله المولّدة: رخصة MIT — انظر [`LICENSE`](LICENSE).
+* خط **Cairo**: SIL Open Font License 1.1 — انظر [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt).
+* Godot Engine: MIT — إشعار الرخصة وقائمة المكوّنات الخارجية تُعرض داخل اللعبة في صفحة "حول اللعبة والرخص".
+
+Project code, scenes and generated assets: MIT (see `LICENSE`). Cairo font: SIL OFL 1.1 (`assets/fonts/OFL.txt`).
+Godot Engine: MIT — the notice and third-party component list are shown in-game on the "About & licenses" page.

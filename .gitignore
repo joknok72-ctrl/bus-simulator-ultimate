@@ -1,15 +1,24 @@
-# Godot 4
+# Godot 4 import cache and editor state
 .godot/
-*.import
-.import/
-# Builds
-build/
-*.apk
-*.aab
-*.tar.gz
-*.zip
-# OS
+*.import.tmp
+
+# Exported binaries (keep build/BUILD_INFO.txt, build/.gdignore and the committed debug APK)
+build/*.apk
+!build/CityBusDriver-debug.apk
+build/*.aab
+build/*.idsig
+build/logs/
+
+# Android gradle build directory (only if gradle builds are enabled later)
+android/build/
+android/.build_version
+
+# Keys and credentials must never be committed
+*.keystore
+*.jks
+export_credentials.cfg
+
+# OS / editor noise
 .DS_Store
 Thumbs.db
-# Local screenshots
-/shots/
+*.swp

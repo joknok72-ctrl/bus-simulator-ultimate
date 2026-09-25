@@ -1,0 +1,197 @@
+# Builds the City Bus Driver Android APK with the exact official Godot 4.7.2-stable editor and
+# publishes it to the "citybusdriver-latest" GitHub release (the link used in README "Download").
+#
+# The Godot project lives at the repository root. The heavy lifting is done by the project's own
+# scripts so that CI and local builds behave identically:
+#   tools/validate.sh        import + headless smoke test (tests/smoke_test.gd) + headless boot
+#   tools/build_android.sh   import -> export debug APK -> apksigner verify -> build/BUILD_INFO.txt
+name: Build CityBusDriver APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-citybusdriver-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_TAG: 4.7.2-stable
+  RELEASE_TAG: citybusdriver-latest
+
+jobs:
+  build:
+    name: Validate and export debug APK (Godot 4.7.2-stable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Non-Gradle export only needs platform-tools (adb) and build-tools (apksigner).
+      # build-tools 36.0.0 matches Godot 4.7's default targetSdk (36).
+      - name: Set up Android SDK (platform-tools + build-tools)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;36.0.0'
+
+      - name: Cache Godot editor and Android export templates
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates/4.7.2.stable
+          key: godot-${{ env.GODOT_TAG }}-linux-x86_64-android-templates-v1
+
+      - name: Download official Godot ${{ env.GODOT_TAG }} editor
+        run: |
+          set -eu
+          BIN="$HOME/godot/Godot_v${GODOT_TAG}_linux.x86_64"
+          if [ ! -x "$BIN" ]; then
+            mkdir -p "$HOME/godot"
+            curl -fsSL --retry 5 --retry-delay 5 -o /tmp/godot.zip \
+              "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+            unzip -q -o /tmp/godot.zip -d "$HOME/godot"
+            chmod +x "$BIN"
+            rm -f /tmp/godot.zip
+          fi
+          echo "GODOT=$BIN" >> "$GITHUB_ENV"
+          "$BIN" --version
+
+      - name: Fetch official Android export templates (${{ env.GODOT_VERSION }}.stable)
+        run: |
+          set -eu
+          TPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TPL_DIR"
+          if [ -s "$TPL_DIR/android_debug.apk" ] && [ -s "$TPL_DIR/android_release.apk" ] \
+             && grep -q "${GODOT_VERSION}.stable" "$TPL_DIR/version.txt" 2>/dev/null; then
+            echo "Android templates already present (restored from cache)."
+          elif python3 tools/fetch_android_templates.py "$TPL_DIR"; then
+            echo "Android templates fetched with tools/fetch_android_templates.py (Android entries only, ~230 MB)."
+          else
+            echo "::warning::Range download failed - falling back to the full official export_templates.tpz"
+            curl -fsSL --retry 5 --retry-delay 5 -o /tmp/templates.tpz \
+              "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz"
+            unzip -q -o -j /tmp/templates.tpz \
+              templates/android_debug.apk templates/android_release.apk templates/version.txt -d "$TPL_DIR"
+            rm -f /tmp/templates.tpz
+          fi
+          grep -q "${GODOT_VERSION}.stable" "$TPL_DIR/version.txt"
+          ls -la "$TPL_DIR"
+
+      # Throw-away CI signing key (debug builds only). tools/build_android.sh keeps the SDK/JDK
+      # paths in this editor settings file up to date before exporting.
+      - name: Create throw-away debug keystore and Godot editor settings
+        run: |
+          set -eu
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
+            -keystore "$HOME/debug.keystore" -storepass android \
+            -dname "CN=Android Debug,O=Android,C=US" -validity 9999
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.7.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          export/android/android_sdk_path = "${ANDROID_HOME}"
+          export/android/debug_keystore = "${HOME}/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          cat "$HOME/.config/godot/editor_settings-4.7.tres"
+
+      - name: Validate with tools/validate.sh (import, headless smoke test, boot)
+        id: validate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          sh tools/validate.sh 2>&1 | tee validate_output.txt
+
+      - name: Validation summary
+        shell: bash
+        env:
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+        run: |
+          {
+            echo "## Validation (tools/validate.sh): ${VALIDATE_OUTCOME}"
+            echo
+            echo '```'
+            grep -E '^\s*\[(PASS|FAIL)\]|checks|SMOKE TEST|VALIDATION|import exit|smoke exit|boot exit|Engine:' validate_output.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${VALIDATE_OUTCOME}" != "success" ]; then
+            echo "::warning::tools/validate.sh did not pass - see the step log and build/logs in the artifact"
+          fi
+
+      - name: Export debug APK with tools/build_android.sh
+        run: sh tools/build_android.sh
+
+      - name: Prepare release assets
+        run: |
+          set -eu
+          cp build/CityBusDriver-debug.apk CityBusDriver.apk
+          {
+            echo "## Android export (tools/build_android.sh)"
+            echo
+            echo '```'
+            cat build/BUILD_INFO.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          ls -la CityBusDriver.apk build/
+
+      - name: Upload build artifact (APK, BUILD_INFO, logs)
+        uses: actions/upload-artifact@v5
+        with:
+          name: CityBusDriver-apk
+          path: |
+            CityBusDriver.apk
+            build/BUILD_INFO.txt
+            build/logs/
+            validate_output.txt
+          if-no-files-found: error
+
+      # Keep the moving tag on the commit that was actually built (pushing a tag does not
+      # re-trigger this workflow because it only listens to branch pushes).
+      - name: Move the ${{ env.RELEASE_TAG }} tag to this commit
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$RELEASE_TAG"
+
+      - name: Publish GitHub release (${{ env.RELEASE_TAG }})
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "City Bus Driver — أحدث نسخة APK (Godot 4.7.2-stable)"
+          body: |
+            🚌 **City Bus Driver — سائق حافلة المدينة** — بناء تلقائي من الـ commit `${{ github.sha }}`
+            المحرك: Godot ${{ env.GODOT_TAG }} (الرسمي) · arm64-v8a · نسخة تصحيح (debug) موقّعة بمفتاح CI مؤقّت
+            نتيجة التحقق (`tools/validate.sh`): ${{ steps.validate.outcome }}
+
+            📲 نزّل `CityBusDriver.apk` على هاتفك الأندرويد وثبّته (فعّل "تثبيت من مصادر غير معروفة").
+
+            Automatic build from commit `${{ github.sha }}` with the official Godot ${{ env.GODOT_TAG }} editor
+            (arm64-v8a, debug build signed with a throw-away CI key). Validation (`tools/validate.sh`): ${{ steps.validate.outcome }}.
+            Download `CityBusDriver.apk` on your Android phone and install it (enable "install from unknown sources").
+            `BUILD_INFO.txt` lists the engine build, the template version and the SHA-256 of the APK.
+          files: |
+            CityBusDriver.apk
+            build/BUILD_INFO.txt
+          prerelease: false
+          make_latest: true
