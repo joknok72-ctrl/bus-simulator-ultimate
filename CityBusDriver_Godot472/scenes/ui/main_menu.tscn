@@ -1,0 +1,489 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+[ext_resource type="PackedScene" path="res://scenes/bus.tscn" id="2_bus"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.22, 0.42, 0.8, 1)
+sky_horizon_color = Color(0.75, 0.82, 0.92, 1)
+ground_bottom_color = Color(0.2, 0.22, 0.25, 1)
+ground_horizon_color = Color(0.7, 0.74, 0.78, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.75, 0.82, 0.92, 1)
+fog_density = 0.004
+
+[sub_resource type="CylinderMesh" id="platform_mesh"]
+top_radius = 9.0
+bottom_radius = 9.5
+height = 0.4
+
+[sub_resource type="StandardMaterial3D" id="platform_mat"]
+albedo_color = Color(0.2, 0.22, 0.27, 1)
+roughness = 0.6
+metallic = 0.2
+
+[sub_resource type="PlaneMesh" id="ground_mesh"]
+size = Vector2(400, 400)
+
+[node name="MainMenu" type="Node3D"]
+script = ExtResource("1_menu")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766044, -0.417218, 0.489209, 0, 0.760906, 0.648859, -0.642788, -0.497084, 0.582912, 0, 12, 0)
+light_energy = 1.3
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.707107, -0.241845, 0.664463, 0, 0.939693, 0.34202, -0.707107, -0.241845, 0.664463, 10.5, 5.2, 10.5)
+fov = 55.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+mesh = SubResource("ground_mesh")
+surface_material_override/0 = SubResource("platform_mat")
+
+[node name="Platform" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+mesh = SubResource("platform_mesh")
+surface_material_override/0 = SubResource("platform_mat")
+
+[node name="Turntable" type="Node3D" parent="."]
+
+[node name="Bus" parent="Turntable" instance=ExtResource("2_bus")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Root" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="UI/Root"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 20.0
+offset_top = 14.0
+offset_right = -20.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_constants/separation = 20
+
+[node name="LangButton" type="Button" parent="UI/Root/TopBar"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "English / العربية"
+
+[node name="Spacer" type="Control" parent="UI/Root/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="StatsPanel" type="PanelContainer" parent="UI/Root/TopBar"]
+layout_mode = 2
+
+[node name="Stats" type="HBoxContainer" parent="UI/Root/TopBar/StatsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="CoinsLabel" type="Label" parent="UI/Root/TopBar/StatsPanel/Stats"]
+layout_mode = 2
+theme_type_variation = &"HudValue"
+text = "0"
+
+[node name="StarsLabel" type="Label" parent="UI/Root/TopBar/StatsPanel/Stats"]
+layout_mode = 2
+theme_type_variation = &"HudValue"
+text = "0"
+
+[node name="PageHome" type="Control" parent="UI/Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Root/PageHome"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 90.0
+offset_right = -40.0
+offset_bottom = 180.0
+grow_horizontal = 2
+theme_type_variation = &"TitleLabel"
+text = "APP_TITLE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Subtitle" type="Label" parent="UI/Root/PageHome"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 178.0
+offset_right = -40.0
+offset_bottom = 214.0
+grow_horizontal = 2
+text = "APP_SUBTITLE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Buttons" type="VBoxContainer" parent="UI/Root/PageHome"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -340.0
+offset_top = -110.0
+offset_right = -50.0
+offset_bottom = 230.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Play" type="Button" parent="UI/Root/PageHome/Buttons"]
+layout_mode = 2
+theme_type_variation = &"SuccessButton"
+text = "MENU_PLAY"
+
+[node name="Garage" type="Button" parent="UI/Root/PageHome/Buttons"]
+layout_mode = 2
+text = "MENU_GARAGE"
+
+[node name="Settings" type="Button" parent="UI/Root/PageHome/Buttons"]
+layout_mode = 2
+text = "MENU_SETTINGS"
+
+[node name="HowTo" type="Button" parent="UI/Root/PageHome/Buttons"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "MENU_HOWTO"
+
+[node name="Quit" type="Button" parent="UI/Root/PageHome/Buttons"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "MENU_QUIT"
+
+[node name="Version" type="Label" parent="UI/Root/PageHome"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -40.0
+offset_right = 500.0
+offset_bottom = -12.0
+grow_vertical = 0
+theme_type_variation = &"SmallLabel"
+text = "v1.0.0 - Godot 4.7.2"
+
+[node name="About" type="Button" parent="UI/Root/PageHome"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -66.0
+offset_right = -20.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_type_variation = &"SecondaryButton"
+text = "MENU_ABOUT"
+
+[node name="PageRoutes" type="Control" parent="UI/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Root/PageRoutes"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 76.0
+offset_right = -40.0
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_type_variation = &"HeaderLabel"
+text = "ROUTES_TITLE"
+horizontal_alignment = 1
+
+[node name="Cards" type="HBoxContainer" parent="UI/Root/PageRoutes"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -560.0
+offset_top = -200.0
+offset_right = 560.0
+offset_bottom = 240.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Back" type="Button" parent="UI/Root/PageRoutes"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -80.0
+offset_right = 184.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_type_variation = &"SecondaryButton"
+text = "BACK"
+
+[node name="PageGarage" type="Control" parent="UI/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Root/PageGarage"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 76.0
+offset_right = -40.0
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_type_variation = &"HeaderLabel"
+text = "GARAGE_TITLE"
+horizontal_alignment = 1
+
+[node name="Cards" type="HBoxContainer" parent="UI/Root/PageGarage"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -600.0
+offset_top = -320.0
+offset_right = 600.0
+offset_bottom = -100.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Back" type="Button" parent="UI/Root/PageGarage"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -80.0
+offset_right = 184.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_type_variation = &"SecondaryButton"
+text = "BACK"
+
+[node name="PageSettings" type="Control" parent="UI/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Root/PageSettings"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = -40.0
+offset_bottom = 94.0
+grow_horizontal = 2
+theme_type_variation = &"HeaderLabel"
+text = "SETTINGS_TITLE"
+horizontal_alignment = 1
+
+[node name="Panel" type="PanelContainer" parent="UI/Root/PageSettings"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -190.0
+offset_right = 420.0
+offset_bottom = 240.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Grid" type="GridContainer" parent="UI/Root/PageSettings/Panel"]
+layout_mode = 2
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="Back" type="Button" parent="UI/Root/PageSettings"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -80.0
+offset_right = 184.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_type_variation = &"SecondaryButton"
+text = "BACK"
+
+[node name="PageHowTo" type="Control" parent="UI/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Root/PageHowTo"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 76.0
+offset_right = -40.0
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_type_variation = &"HeaderLabel"
+text = "HOWTO_TITLE"
+horizontal_alignment = 1
+
+[node name="Panel" type="PanelContainer" parent="UI/Root/PageHowTo"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -480.0
+offset_top = -180.0
+offset_right = 480.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Lines" type="VBoxContainer" parent="UI/Root/PageHowTo/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Back" type="Button" parent="UI/Root/PageHowTo"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -80.0
+offset_right = 184.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_type_variation = &"SecondaryButton"
+text = "BACK"
+
+[node name="PageAbout" type="Control" parent="UI/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Root/PageAbout"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 76.0
+offset_right = -40.0
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_type_variation = &"HeaderLabel"
+text = "ABOUT_TITLE"
+horizontal_alignment = 1
+
+[node name="Panel" type="PanelContainer" parent="UI/Root/PageAbout"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -480.0
+offset_top = -180.0
+offset_right = 480.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Scroll" type="ScrollContainer" parent="UI/Root/PageAbout/Panel"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Lines" type="VBoxContainer" parent="UI/Root/PageAbout/Panel/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Back" type="Button" parent="UI/Root/PageAbout"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -80.0
+offset_right = 184.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_type_variation = &"SecondaryButton"
+text = "BACK"

@@ -1,0 +1,355 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scripts/ui/touch_controls.gd" id="2_touch"]
+[ext_resource type="Script" path="res://scripts/ui/steering_wheel.gd" id="3_wheel"]
+[ext_resource type="Script" path="res://scripts/ui/touch_button.gd" id="4_button"]
+[ext_resource type="Script" path="res://scripts/ui/minimap.gd" id="5_minimap"]
+[ext_resource type="Script" path="res://scripts/ui/speedometer.gd" id="6_speedo"]
+
+[node name="HUD" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+layout_direction = 2
+script = ExtResource("1_hud")
+
+[node name="TouchControls" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_touch")
+
+[node name="Wheel" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -300.0
+offset_right = 300.0
+offset_bottom = -24.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("3_wheel")
+
+[node name="LeftButton" type="Control" parent="TouchControls"]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 30.0
+offset_top = -180.0
+offset_right = 170.0
+offset_bottom = -40.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 4
+
+[node name="RightButton" type="Control" parent="TouchControls"]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 200.0
+offset_top = -180.0
+offset_right = 340.0
+offset_bottom = -40.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 5
+
+[node name="Brake" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -226.0
+offset_right = -186.0
+offset_bottom = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+shape = 1
+icon = 8
+label_key = "BTN_BRAKE"
+base_color = Color(0.6, 0.16, 0.14, 0.9)
+
+[node name="Gas" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -166.0
+offset_top = -270.0
+offset_right = -30.0
+offset_bottom = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+shape = 1
+icon = 7
+label_key = "BTN_GAS"
+base_color = Color(0.13, 0.45, 0.25, 0.9)
+analog_ramp = 0.35
+
+[node name="HornButton" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -140.0
+offset_top = -390.0
+offset_right = -46.0
+offset_bottom = -296.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 1
+label_key = "BTN_HORN"
+base_color = Color(0.2, 0.22, 0.3, 0.9)
+
+[node name="DoorsButton" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -276.0
+offset_top = -390.0
+offset_right = -182.0
+offset_bottom = -296.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 2
+label_key = "BTN_DOORS"
+base_color = Color(0.75, 0.55, 0.1, 0.92)
+
+[node name="CameraButton" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -390.0
+offset_top = -372.0
+offset_right = -318.0
+offset_bottom = -300.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 3
+label_key = "BTN_CAM"
+base_color = Color(0.2, 0.22, 0.3, 0.9)
+
+[node name="PauseButton" type="Control" parent="TouchControls"]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 16.0
+offset_right = 84.0
+offset_bottom = 80.0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 6
+base_color = Color(0.15, 0.17, 0.22, 0.85)
+
+[node name="TiltHint" type="Label" parent="TouchControls"]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 30.0
+offset_top = -130.0
+offset_right = 360.0
+offset_bottom = -80.0
+grow_vertical = 0
+text = "TILT_HINT"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Minimap" type="Control" parent="."]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 96.0
+offset_right = 200.0
+offset_bottom = 276.0
+mouse_filter = 2
+script = ExtResource("5_minimap")
+
+[node name="TopCenter" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -250.0
+offset_top = 12.0
+offset_right = 250.0
+offset_bottom = 90.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="TopCenter"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="StopLabel" type="Label" parent="TopCenter/VBox"]
+layout_mode = 2
+theme_type_variation = &"HudValue"
+text = "HUD_NEXT_STOP"
+horizontal_alignment = 1
+
+[node name="DistanceLabel" type="Label" parent="TopCenter/VBox"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "0 m"
+horizontal_alignment = 1
+
+[node name="TopRight" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 160.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="Grid" type="GridContainer" parent="TopRight"]
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 2
+columns = 2
+
+[node name="TimeTitle" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "HUD_TIME"
+
+[node name="TimeLabel" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HudValue"
+text = "0:00"
+horizontal_alignment = 2
+
+[node name="ScoreTitle" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "HUD_SCORE"
+
+[node name="ScoreLabel" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HudValue"
+text = "0"
+horizontal_alignment = 2
+
+[node name="PassengersTitle" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "HUD_PASSENGERS"
+
+[node name="PassengersLabel" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HudValue"
+text = "0 / 0"
+horizontal_alignment = 2
+
+[node name="DamageTitle" type="Label" parent="TopRight/Grid"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "HUD_DAMAGE"
+
+[node name="DamageBar" type="ProgressBar" parent="TopRight/Grid"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 100.0
+show_percentage = false
+
+[node name="Speedometer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -115.0
+offset_top = -200.0
+offset_right = 115.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("6_speedo")
+
+[node name="MessageLabel" type="Label" parent="."]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -190.0
+offset_right = 420.0
+offset_bottom = -120.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"HeaderLabel"
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="Countdown" type="Label" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -80.0
+offset_right = 300.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"TitleLabel"
+text = "3"
+horizontal_alignment = 1
+vertical_alignment = 1

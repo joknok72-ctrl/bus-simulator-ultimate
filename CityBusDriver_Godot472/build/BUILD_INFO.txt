@@ -1,0 +1,7 @@
+City Bus Driver - Android build
+date (UTC): 2026-09-25T09:34:09Z
+engine: 4.7.2.stable.official.ed1daf0bf
+templates: /root/.local/share/godot/export_templates/4.7.2.stable (4.7.2.stable)
+preset: Android (export_presets.cfg) - arm64-v8a, non-gradle
+debug apk: CityBusDriver-debug.apk 28683247 bytes sha256=68ee6b10d208970d1aa5f3c5229319d3c56e8367a72461fbcabdf5899ddefa1c
+import errors (second pass): 0

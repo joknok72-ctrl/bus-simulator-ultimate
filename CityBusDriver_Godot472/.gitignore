@@ -1,0 +1,23 @@
+# Godot 4 import cache and editor state
+.godot/
+*.import.tmp
+
+# Exported binaries (keep build/BUILD_INFO.txt and build/.gdignore)
+build/*.apk
+build/*.aab
+build/*.idsig
+build/logs/
+
+# Android gradle build directory (only if gradle builds are enabled later)
+android/build/
+android/.build_version
+
+# Keys and credentials must never be committed
+*.keystore
+*.jks
+export_credentials.cfg
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp

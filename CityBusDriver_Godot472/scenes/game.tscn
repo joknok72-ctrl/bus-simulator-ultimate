@@ -1,0 +1,178 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/world/city_builder.gd" id="2_city"]
+[ext_resource type="Script" path="res://scripts/vehicle/camera_rig.gd" id="3_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4_hud"]
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="5_pause"]
+[ext_resource type="Script" path="res://scripts/ui/results_panel.gd" id="6_results"]
+[ext_resource type="Script" path="res://scripts/ui/stars_display.gd" id="7_stars"]
+
+[node name="Game" type="Node3D"]
+script = ExtResource("1_game")
+
+[node name="World" type="Node3D" parent="."]
+script = ExtResource("2_city")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("3_cam")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+fov = 68.0
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" parent="HUDLayer" instance=ExtResource("4_hud")]
+
+[node name="PauseLayer" type="CanvasLayer" parent="."]
+process_mode = 3
+layer = 5
+
+[node name="PauseMenu" type="Control" parent="PauseLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_pause")
+
+[node name="Dim" type="ColorRect" parent="PauseLayer/PauseMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="Panel" type="PanelContainer" parent="PauseLayer/PauseMenu"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -250.0
+offset_right = 260.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="PauseLayer/PauseMenu/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="PauseLayer/PauseMenu/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="Resume" type="Button" parent="PauseLayer/PauseMenu/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"SuccessButton"
+text = "RESUME"
+
+[node name="Restart" type="Button" parent="PauseLayer/PauseMenu/Panel/VBox"]
+layout_mode = 2
+text = "RESTART"
+
+[node name="Controls" type="Button" parent="PauseLayer/PauseMenu/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "SET_CONTROLS"
+
+[node name="Sound" type="Button" parent="PauseLayer/PauseMenu/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "SET_SOUND"
+
+[node name="Menu" type="Button" parent="PauseLayer/PauseMenu/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "MAIN_MENU"
+
+[node name="ResultsLayer" type="CanvasLayer" parent="."]
+process_mode = 3
+layer = 6
+
+[node name="ResultsPanel" type="Control" parent="ResultsLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_results")
+
+[node name="Dim" type="ColorRect" parent="ResultsLayer/ResultsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Panel" type="PanelContainer" parent="ResultsLayer/ResultsPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -330.0
+offset_top = -300.0
+offset_right = 330.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="ResultsLayer/ResultsPanel/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="ResultsLayer/ResultsPanel/Panel/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "RESULT_COMPLETE"
+horizontal_alignment = 1
+
+[node name="Stars" type="Control" parent="ResultsLayer/ResultsPanel/Panel/VBox"]
+custom_minimum_size = Vector2(200, 64)
+layout_mode = 2
+script = ExtResource("7_stars")
+
+[node name="Grid" type="GridContainer" parent="ResultsLayer/ResultsPanel/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 30
+theme_override_constants/v_separation = 2
+columns = 2
+
+[node name="BestLabel" type="Label" parent="ResultsLayer/ResultsPanel/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "RESULT_NEW_BEST"
+horizontal_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="ResultsLayer/ResultsPanel/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Retry" type="Button" parent="ResultsLayer/ResultsPanel/Panel/VBox/Buttons"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "RETRY"
+
+[node name="Next" type="Button" parent="ResultsLayer/ResultsPanel/Panel/VBox/Buttons"]
+layout_mode = 2
+theme_type_variation = &"SuccessButton"
+text = "NEXT_ROUTE"
+
+[node name="Menu" type="Button" parent="ResultsLayer/ResultsPanel/Panel/VBox/Buttons"]
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "MAIN_MENU"
