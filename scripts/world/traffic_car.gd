@@ -51,6 +51,7 @@ func setup(loop_points: PackedVector3Array, start_index: int, night: bool, is_tr
 	var next := waypoints[wp_index]
 	global_position = prev.lerp(next, randf_range(0.2, 0.8))
 	_face(next)
+	reset_physics_interpolation()
 
 
 func _build_visual(night: bool, is_truck: bool) -> void:

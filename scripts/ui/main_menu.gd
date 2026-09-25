@@ -20,15 +20,31 @@ extends Node3D
 @onready var settings_grid: GridContainer = $UI/Root/PageSettings/Panel/Grid
 @onready var howto_lines: VBoxContainer = $UI/Root/PageHowTo/Panel/Lines
 
+## The turntable, ground and platform sit low on the home page so the bus stays clear of the
+## title; on the card pages (routes, garage) the whole stage is lifted so the bus shows
+## above the card row.
+const STAGE_LIFT_PAGES := 1.1
+
 var _pages: Array[Control] = []
 var _current_page: Control
+var _stage_nodes: Array[Node3D] = []
+var _stage_base_y: Array[float] = []
+var _stage_tween: Tween
 
 
 func _ready() -> void:
 	_pages = [page_home, page_routes, page_garage, page_settings, page_howto, page_about]
+	_stage_nodes = [turntable, $Ground, $Platform]
+	for n in _stage_nodes:
+		_stage_base_y.append(n.position.y)
 	bus.set_physics_process(false)
 	bus.configure(GameState.get_bus_color(), false)
 	bus.position = Vector3(0, 0, 0)
+	# Footer: real project version and engine version instead of a hard-coded string.
+	var engine_info := Engine.get_version_info()
+	$UI/Root/PageHome/Version.text = "v%s - Godot %s.%s.%s" % [
+		str(ProjectSettings.get_setting("application/config/version", "")),
+		engine_info.get("major", 0), engine_info.get("minor", 0), engine_info.get("patch", 0)]
 	# Home buttons
 	$UI/Root/PageHome/Buttons/Play.pressed.connect(func() -> void: _show_page(page_routes))
 	$UI/Root/PageHome/Buttons/Garage.pressed.connect(func() -> void: _show_page(page_garage))
@@ -47,8 +63,18 @@ func _ready() -> void:
 	_refresh_all()
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	# Rotated on the physics tick so physics interpolation keeps it smooth.
 	turntable.rotate_y(delta * 0.35)
+
+
+func _notification(what: int) -> void:
+	# Android back button: return to the home page, or quit from the home page.
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and is_inside_tree():
+		if _current_page != null and _current_page != page_home:
+			_show_page(page_home)
+		else:
+			get_tree().quit()
 
 
 func _show_page(page: Control, click: bool = true) -> void:
@@ -57,6 +83,7 @@ func _show_page(page: Control, click: bool = true) -> void:
 	for p in _pages:
 		p.visible = p == page
 	_current_page = page
+	_set_stage_lift(0.0 if page == page_home else STAGE_LIFT_PAGES, click)
 	if page == page_routes:
 		_build_route_cards()
 	elif page == page_garage:
@@ -68,6 +95,20 @@ func _show_page(page: Control, click: bool = true) -> void:
 	elif page == page_about:
 		_build_about()
 	_refresh_stats()
+
+
+func _set_stage_lift(lift: float, animate: bool) -> void:
+	if _stage_tween and _stage_tween.is_valid():
+		_stage_tween.kill()
+	if animate:
+		_stage_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	for i in _stage_nodes.size():
+		var target_y := _stage_base_y[i] + lift
+		if animate:
+			_stage_tween.tween_property(_stage_nodes[i], "position:y", target_y, 0.35)
+		else:
+			_stage_nodes[i].position.y = target_y
+			_stage_nodes[i].reset_physics_interpolation()
 
 
 func _refresh_all() -> void:

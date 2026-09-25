@@ -19,6 +19,8 @@ var _walking := false
 
 
 func _ready() -> void:
+	# Passengers are moved by idle-time tweens, not by physics ticks.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_build()
 
 

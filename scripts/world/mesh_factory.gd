@@ -24,15 +24,17 @@ static func mat(color: Color, roughness: float = 0.8, metallic: float = 0.0, emi
 	return m
 
 
-static func glass_mat(color: Color = Color(0.25, 0.4, 0.55, 0.65)) -> StandardMaterial3D:
-	var key := "glass|" + color.to_html()
+## Tinted glass. Lower metallic/higher roughness gives glass that is looked *through* at grazing
+## angles (cabin windows) instead of mirroring the sky.
+static func glass_mat(color: Color = Color(0.25, 0.4, 0.55, 0.65), metallic: float = 0.3, roughness: float = 0.1) -> StandardMaterial3D:
+	var key := "glass|%s|%.2f|%.2f" % [color.to_html(), metallic, roughness]
 	if _material_cache.has(key):
 		return _material_cache[key]
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.1
-	m.metallic = 0.3
+	m.roughness = roughness
+	m.metallic = metallic
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_material_cache[key] = m
 	return m
@@ -127,11 +129,11 @@ static func tree_mesh(crown_color: Color) -> ArrayMesh:
 	trunk.radial_segments = 6
 	append_surface(mesh, trunk, Vector3(0, 1.2, 0), mat(Color(0.36, 0.25, 0.15), 0.95))
 	var crown := SphereMesh.new()
-	crown.radius = 1.7
-	crown.height = 3.4
+	crown.radius = 1.5
+	crown.height = 3.0
 	crown.radial_segments = 8
 	crown.rings = 5
-	append_surface(mesh, crown, Vector3(0, 3.4, 0), mat(crown_color, 0.9))
+	append_surface(mesh, crown, Vector3(0, 3.3, 0), mat(crown_color, 0.9))
 	return mesh
 
 

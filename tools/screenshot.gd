@@ -5,6 +5,11 @@ extends SceneTree
 ##       --rendering-driver opengl3 --resolution 1280x720 -s res://tools/screenshot.gd
 ## Output directory: $SHOT_DIR or res://docs/screenshots
 
+const CAM_CHASE := 0
+const CAM_DRIVER := 1
+const CAM_TOP := 2
+const STATE_DRIVING := 1
+
 var _dir := ""
 
 
@@ -13,6 +18,9 @@ func _init() -> void:
 	if _dir == "":
 		_dir = ProjectSettings.globalize_path("res://docs/screenshots")
 	DirAccess.make_dir_recursive_absolute(_dir)
+	# One physics tick per rendered frame keeps the simulated drives repeatable under
+	# software rendering, where a frame can take much longer than 1/60 s.
+	Engine.max_physics_steps_per_frame = 1
 	call_deferred("_run")
 
 
@@ -56,44 +64,63 @@ func _run() -> void:
 	await _shot("07_menu_home_ar")
 	menu.queue_free()
 	await _frames(3)
-	# --- gameplay: countdown, driving, stop with open doors, night route ---
+	# --- gameplay: countdown, driving (chase + driver seat), turning, stop with open doors ---
 	gs.set_setting("language", "en")
+	gs.set_setting("camera", CAM_CHASE)
 	gs.selected_route_id = "route_1"
 	var game = load("res://scenes/game.tscn").instantiate()
 	root.add_child(game)
 	await _frames(10)
 	await _shot("08_game_countdown")
-	game.state = 1  # DRIVING
+	game.state = STATE_DRIVING
 	game.bus.engine_on = true
 	game.hud.touch_controls.gas.press()
 	await _frames(150)
 	await _shot("09_game_driving_chase")
-	game.hud.touch_controls.gas.release()
-	game.camera_rig.mode = 1  # DRIVER
-	game.camera_rig._initialized = false
-	await _frames(20)
+	# High view while still driving straight in the lane.
+	game.camera_rig.set_mode(CAM_TOP)
+	await _frames(40)
+	await _shot("14_game_top_camera")
+	game.camera_rig.set_mode(CAM_DRIVER)
+	await _frames(40)
 	await _shot("10_game_driver_camera")
-	game.camera_rig.mode = 0  # CHASE
-	game.camera_rig._initialized = false
+	# Steer into a turn (towards the road centre, away from the curb): the cockpit wheel turns,
+	# the body rolls and the view looks into the bend.
+	game.hud.touch_controls.wheel.angle = deg_to_rad(-70.0)
+	game.hud.touch_controls.wheel.held = true
+	await _frames(40)
+	await _shot("13_game_driver_turning")
+	game.hud.touch_controls.wheel.held = false
+	game.hud.touch_controls.gas.release()
+	# Bus stop with open doors, seen from the driver's seat and from behind.
 	var stop = game.world.stops[0]
 	game.bus.stop_immediately()
 	game.bus.global_transform = stop.global_transform
+	game.bus.reset_physics_interpolation()
+	game.camera_rig.set_mode(CAM_DRIVER)
 	await _frames(5)
 	game.bus.toggle_doors()
+	await _frames(45)
+	await _shot("15_game_driver_at_stop")
+	game.camera_rig.set_mode(CAM_CHASE)
 	await _frames(40)
 	await _shot("11_game_bus_stop_boarding")
 	game.queue_free()
 	await _frames(3)
+	# --- night route from the driver's seat ---
 	gs.selected_route_id = "route_3"
 	var night = load("res://scenes/game.tscn").instantiate()
 	root.add_child(night)
 	await _frames(10)
-	night.state = 1
+	night.state = STATE_DRIVING
 	night.bus.engine_on = true
+	night.camera_rig.set_mode(CAM_DRIVER)
 	night.hud.touch_controls.gas.press()
 	await _frames(120)
 	await _shot("12_game_night_route")
 	night.queue_free()
 	await _frames(2)
+	gs.set_setting("camera", CAM_CHASE)
+	gs.selected_route_id = "route_1"
 	print("== screenshots done ==")
 	quit(0)

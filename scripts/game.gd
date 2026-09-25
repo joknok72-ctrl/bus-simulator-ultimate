@@ -10,6 +10,16 @@ const STOP_BONUS := 100
 const PASSENGER_POINTS := 50
 const MISSED_PENALTY := 200
 const BOARDING_INTERVAL := 0.6
+const CAMERA_NAMES: Array[String] = ["CAM_CHASE", "CAM_DRIVER", "CAM_TOP"]
+## Guide arrow placement: above the bus for the outside views; in the driver view it sits
+## on the road ahead of the bumper, like a navigation arrow projected on the tarmac.
+const ARROW_ABOVE := Vector3(0, 5.2, 0)
+const ARROW_AHEAD_DISTANCE := 14.0
+const ARROW_AHEAD_MIN := 7.0
+const ARROW_HIDE_DISTANCE := 9.0
+const ARROW_AHEAD_HEIGHT := 0.6
+const ARROW_AHEAD_SCALE := 1.3
+const ARROW_TILT := deg_to_rad(32.0)   # nose up, so the flat arrow is readable from behind
 
 @onready var world: CityBuilder = $World
 @onready var camera_rig: CameraRig = $CameraRig
@@ -42,6 +52,9 @@ var _finish_started := false
 
 
 func _ready() -> void:
+	# Run after the bus has moved this tick so the guide arrow follows the current position
+	# (the camera rig runs even later, see CameraRig._ready).
+	process_physics_priority = 10
 	route = RouteData.get_route(GameState.selected_route_id)
 	speed_limit = int(route.get("speed_limit", 50))
 	time_left = float(route.get("time_limit", 150))
@@ -52,6 +65,7 @@ func _ready() -> void:
 	bus = BUS_SCENE.instantiate() as Bus
 	add_child(bus)
 	bus.global_transform = world.get_spawn_transform()
+	bus.reset_physics_interpolation()
 	bus.configure(GameState.get_bus_color(), world.night)
 	bus.engine_on = false
 	bus.collided.connect(_on_bus_collided)
@@ -66,9 +80,7 @@ func _ready() -> void:
 	hud.minimap.cars = world.cars
 	hud.touch_controls.horn_pressed.connect(func() -> void: bus.honk())
 	hud.touch_controls.doors_pressed.connect(_on_doors_button)
-	hud.touch_controls.camera_pressed.connect(func() -> void:
-		camera_rig.cycle_mode()
-		AudioSynth.play("click", -6.0))
+	hud.touch_controls.camera_pressed.connect(_on_camera_button)
 	hud.touch_controls.pause_pressed.connect(_on_pause_pressed)
 	pause_menu.resume_requested.connect(_resume)
 	pause_menu.restart_requested.connect(_restart)
@@ -79,6 +91,7 @@ func _ready() -> void:
 	_build_guide_arrow()
 	_update_stop_targets()
 	hud.set_stats(time_left, score, onboard, delivered, total_passengers, 0.0)
+	hud.set_next_stop(current_stop, bus.global_position.distance_to(_current_target_position()), false, world.stops.size())
 	_run_countdown()
 
 
@@ -106,7 +119,10 @@ func _run_countdown() -> void:
 func _build_guide_arrow() -> void:
 	_guide_arrow = Node3D.new()
 	add_child(_guide_arrow)
-	var mat := MeshFactory.mat(Color(0.3, 0.95, 0.4), 0.4, 0.0, Color(0.3, 1.0, 0.4), 1.5)
+	# Unshaded so it stays a readable green instead of blowing out to white in sunlight.
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.25, 0.9, 0.35)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var shaft := BoxMesh.new()
 	shaft.size = Vector3(0.5, 0.25, 1.6)
 	var shaft_mi := MeshInstance3D.new()
@@ -129,16 +145,39 @@ func _update_guide_arrow(delta: float, target: Vector3) -> void:
 	if _guide_arrow == null or bus == null:
 		return
 	_arrow_bob += delta * 3.0
-	var pos := bus.global_position + Vector3(0, 5.2 + sin(_arrow_bob) * 0.2, 0)
+	var dist := Vector2(target.x - bus.global_position.x, target.z - bus.global_position.z).length()
+	var driver := camera_rig.is_driver_view()
+	var pos: Vector3
+	if driver:
+		# On the road ahead, where the driver is looking. It slides closer (and shrinks) as the
+		# stop comes near so it never sits beyond the stop pointing back at the bus.
+		var ahead := clampf(dist - 4.0, ARROW_AHEAD_MIN, ARROW_AHEAD_DISTANCE)
+		var far_t := (ahead - ARROW_AHEAD_MIN) / (ARROW_AHEAD_DISTANCE - ARROW_AHEAD_MIN)
+		pos = bus.global_position - bus.global_transform.basis.z * ahead + Vector3(0, ARROW_AHEAD_HEIGHT + sin(_arrow_bob) * 0.08, 0)
+		_guide_arrow.scale = Vector3.ONE * lerpf(1.0, ARROW_AHEAD_SCALE, far_t)
+	else:
+		pos = bus.global_position + ARROW_ABOVE + Vector3(0, sin(_arrow_bob) * 0.2, 0)
+		_guide_arrow.scale = Vector3.ONE
 	_guide_arrow.global_position = pos
 	var flat_target := Vector3(target.x, pos.y, target.z)
 	if flat_target.distance_squared_to(pos) > 0.5:
 		_guide_arrow.look_at(flat_target, Vector3.UP)
-	_guide_arrow.visible = state != State.FINISHED and camera_rig.mode != GameState.CameraMode.DRIVER
+		# Nose up: every camera looks at the arrow from above and behind.
+		_guide_arrow.rotate_object_local(Vector3.RIGHT, ARROW_TILT)
+	# Hidden once the bus is at the stop (boarding) and, in the cockpit, when the stop is so close
+	# that the painted stop zone and the shelter are already in view.
+	var at_stop := state == State.BOARDING or state == State.WAIT_CLOSE
+	_guide_arrow.visible = state != State.FINISHED and not at_stop and not (driver and dist < ARROW_HIDE_DISTANCE)
+
+
+func _on_camera_button() -> void:
+	camera_rig.cycle_mode()
+	AudioSynth.play("click", -6.0)
+	hud.show_message(tr(CAMERA_NAMES[camera_rig.mode]), 0.9, Color(0.85, 0.9, 1.0))
 
 
 # ---------------------------------------------------------------- main loop
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if bus == null:
 		return
 	var tc := hud.touch_controls
@@ -150,13 +189,14 @@ func _physics_process(_delta: float) -> void:
 		bus.input_steer = tc.steer
 		bus.input_throttle = tc.throttle
 		bus.input_brake = tc.brake
+	# The arrow follows the (physics-driven) bus, so move it on the physics tick too.
+	_update_guide_arrow(delta, _current_target_position())
 
 
 func _process(delta: float) -> void:
 	if bus == null:
 		return
 	var target := _current_target_position()
-	_update_guide_arrow(delta, target)
 	hud.set_speed(bus.speed_kmh(), speed_limit, bus.reverse_gear or bus.speed < -0.05, bus.doors_open)
 	hud.minimap.current_stop_index = current_stop
 	if state == State.FINISHED or state == State.COUNTDOWN:
@@ -424,6 +464,12 @@ func _next_route() -> void:
 		_restart()
 	else:
 		_to_menu()
+
+
+func _notification(what: int) -> void:
+	# Android back button: pause instead of quitting (results screen has its own buttons).
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and is_inside_tree() and not results.visible:
+		_on_pause_pressed()
 
 
 func _exit_tree() -> void:

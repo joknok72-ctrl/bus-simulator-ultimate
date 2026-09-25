@@ -11,7 +11,7 @@ config/name_localized={
 "ar": "سائق حافلة المدينة"
 }
 config/description="Original 3D city bus driving game for Android phones. Pick up passengers, follow the route, drive safely and beat the clock."
-config/version="1.0.0"
+config/version="1.1.0"
 run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 boot_splash/bg_color=Color(0.07, 0.09, 0.14, 1)
@@ -117,6 +117,7 @@ rendering/root_node_layout_direction=0
 [physics]
 
 common/physics_ticks_per_second=60
+common/physics_interpolation=true
 3d/default_gravity=9.8
 
 [rendering]

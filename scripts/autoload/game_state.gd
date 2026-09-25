@@ -49,6 +49,9 @@ var _fader: ColorRect
 
 
 func _ready() -> void:
+	# The Android back button must not kill the app: the game scene pauses and the main
+	# menu steps back one page instead (both handle NOTIFICATION_WM_GO_BACK_REQUEST).
+	get_tree().quit_on_go_back = false
 	load_game()
 	if String(settings.language).is_empty():
 		var lang := OS.get_locale_language()

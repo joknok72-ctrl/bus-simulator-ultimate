@@ -45,8 +45,13 @@ export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"
 export/android/android_sdk_path = "/opt/android-sdk"
 ```
 
-مفتاح التصحيح (debug keystore) يُنشئه Godot 4.7 تلقائياً في `~/.local/share/godot/keystores/debug.keystore`.
-Godot 4.7 auto-generates the debug keystore at `~/.local/share/godot/keystores/debug.keystore`.
+مفتاح التصحيح (debug keystore): يُنشئ `tools/build_android.sh` مفتاحاً مؤقّتاً في `~/debug.keystore` إن لم يوجد (غيّر المسار عبر
+`DEBUG_KEYSTORE=...`) ويضبط `export/android/debug_keystore*` في إعدادات المحرّر — وهو ما يفعله GitHub Actions أيضاً.
+كل مفتاح مؤقّت مختلف عن سابقه، لذا احذف النسخة القديمة من الهاتف قبل تثبيت APK من بناء آخر.
+Debug keystore: `tools/build_android.sh` creates a throw-away key at `~/debug.keystore` if none exists (override with
+`DEBUG_KEYSTORE=...`) and writes `export/android/debug_keystore*` into the editor settings — the same thing the GitHub
+Actions workflow does. Every throw-away key differs from the previous one, so uninstall the old copy from the phone
+before installing an APK from another build.
 
 ## 4) التصدير | Export
 
@@ -58,7 +63,7 @@ $GODOT --headless --path . --export-debug "Android" build/CityBusDriver-debug.ap
 ```
 
 الإعداد `Android` معرّف في `export_presets.cfg`:
-arm64-v8a فقط، الحزمة `com.khaled.citybusdriver`، الإصدار `1.0.0` (code 1)، وضع ملء الشاشة، صلاحية `VIBRATE`،
+arm64-v8a فقط، الحزمة `com.khaled.citybusdriver`، الإصدار `1.1.0` (code 2)، وضع ملء الشاشة، صلاحية `VIBRATE`،
 أيقونات adaptive من `android/icons/`. minSdk = 24 (Android 7.0) وtargetSdk = 36 (افتراضيات Godot 4.7).
 
 ### نسخة release موقّعة | Signed release

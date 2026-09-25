@@ -8,8 +8,9 @@
 # Optional release signing:
 #   RELEASE_KEYSTORE=/secure/my.keystore RELEASE_KEY_ALIAS=upload RELEASE_KEY_PASS=... sh tools/build_android.sh
 #
-# Steps: check engine version -> fetch Android templates if missing -> configure editor SDK paths
-#        -> import -> export debug APK (and release APK if a keystore is given) -> verify -> BUILD_INFO.txt
+# Steps: check engine version -> fetch Android templates if missing -> create a throw-away debug
+#        keystore if missing (DEBUG_KEYSTORE, default ~/debug.keystore) -> configure editor SDK/keystore
+#        paths -> import -> export debug APK (and release APK if a keystore is given) -> verify -> BUILD_INFO.txt
 set -u
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 GODOT=${GODOT:-/tmp/godot/Godot_v4.7.2-stable_linux.x86_64}
@@ -42,16 +43,27 @@ if [ ! -f "$TPL_DIR/android_debug.apk" ] || [ ! -f "$TPL_DIR/android_release.apk
 fi
 grep -q "4.7.2.stable" "$TPL_DIR/version.txt" || fail "template version.txt mismatch"
 
-# --- editor settings: SDK paths ---------------------------------------------------------
+# --- debug keystore (throw-away key for debug builds; created if missing) ----------------
+DEBUG_KEYSTORE=${DEBUG_KEYSTORE:-$HOME/debug.keystore}
+DEBUG_KEYSTORE_USER=${DEBUG_KEYSTORE_USER:-androiddebugkey}
+DEBUG_KEYSTORE_PASS=${DEBUG_KEYSTORE_PASS:-android}
+if [ ! -f "$DEBUG_KEYSTORE" ]; then
+  echo "Creating throw-away debug keystore $DEBUG_KEYSTORE ..."
+  "$JAVA_HOME/bin/keytool" -keyalg RSA -genkeypair -alias "$DEBUG_KEYSTORE_USER" -keypass "$DEBUG_KEYSTORE_PASS" \
+    -keystore "$DEBUG_KEYSTORE" -storepass "$DEBUG_KEYSTORE_PASS" \
+    -dname "CN=Android Debug,O=Android,C=US" -validity 9999 > "$LOGS/keytool.log" 2>&1 || fail "keytool could not create $DEBUG_KEYSTORE"
+fi
+
+# --- editor settings: SDK paths and debug keystore --------------------------------------
 SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/godot/editor_settings-4.7.tres"
 if [ ! -f "$SETTINGS" ]; then
   # First editor start creates the file (headless import is enough).
   "$GODOT" --headless --path "$HERE" --import > "$LOGS/import0.log" 2>&1
 fi
 [ -f "$SETTINGS" ] || fail "editor settings file was not created at $SETTINGS"
-python3 - "$SETTINGS" "$JAVA_HOME" "$ANDROID_HOME" <<'EOF'
+python3 - "$SETTINGS" "$JAVA_HOME" "$ANDROID_HOME" "$DEBUG_KEYSTORE" "$DEBUG_KEYSTORE_USER" "$DEBUG_KEYSTORE_PASS" <<'EOF'
 import re, sys
-path, java, sdk = sys.argv[1:4]
+path, java, sdk, keystore, ks_user, ks_pass = sys.argv[1:7]
 s = open(path, encoding="utf-8").read()
 def put(key, value):
     global s
@@ -62,6 +74,9 @@ def put(key, value):
         s = s.rstrip("\n") + "\n" + line + "\n"
 put("export/android/java_sdk_path", java)
 put("export/android/android_sdk_path", sdk)
+put("export/android/debug_keystore", keystore)
+put("export/android/debug_keystore_user", ks_user)
+put("export/android/debug_keystore_pass", ks_pass)
 open(path, "w", encoding="utf-8").write(s)
 print("editor settings updated:", path)
 EOF

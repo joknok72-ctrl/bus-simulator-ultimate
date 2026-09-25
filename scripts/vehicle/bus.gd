@@ -2,7 +2,9 @@ class_name Bus
 extends CharacterBody3D
 ## The player's city bus. Arcade-style kinematic vehicle model tuned for touch
 ## controls: throttle/brake pedals, steering in -1..1, doors and horn.
-## -Z is forward. Emits signals consumed by the mission controller.
+## -Z is forward, +X is the curb (door) side. Emits signals consumed by the
+## mission controller. The body is built from primitives in code, including a
+## real cabin interior so the driver-seat camera has something to look at.
 
 signal collided(strength: float)
 signal doors_changed(open: bool)
@@ -23,6 +25,24 @@ const STEER_RATE := deg_to_rad(95.0)
 const STEER_RETURN_RATE := deg_to_rad(140.0)
 const WHEEL_RADIUS := 0.55
 const REVERSE_HOLD_TIME := 0.45
+const HAND_WHEEL_MAX := deg_to_rad(150.0)   # visual steering wheel rotation at full lock
+
+# --- body geometry (bus-local metres) ----------------------------------------
+const LENGTH := 11.0
+const WIDTH := 2.5
+const FRONT_DOOR_Z := -LENGTH * 0.5 + 1.9
+const REAR_DOOR_Z := 0.8
+const FLOOR_Y := 1.03                  # top of the cabin floor
+const CEILING_Y := 2.97                # underside of the cabin ceiling
+const DASH_TOP_Y := 1.86               # driver-side dashboard top
+const ENTRANCE_DASH_TOP_Y := 1.62      # lower panel on the door side
+## Driver's eye point (left-hand drive), about 1.7 m behind the windshield and 0.75 m
+## above the dashboard: the road, the dash top and the upper half of the steering wheel
+## are all in frame, and no pillar or panel comes closer than ~0.3 m to the camera.
+const DRIVER_EYE := Vector3(-0.72, 2.6, -3.75)
+const HAND_WHEEL_POS := Vector3(-0.72, 2.06, -4.42)
+const HAND_WHEEL_RADIUS := 0.22
+const HAND_WHEEL_TILT := deg_to_rad(50.0)   # wheel axis tilted up towards the driver
 
 # --- inputs (set every frame by the controller) -----------------------------
 var input_throttle := 0.0
@@ -43,6 +63,7 @@ var _reverse_hold := 0.0
 var _collision_cooldown := 0.0
 var _door_tween: Tween
 var _horn_cooldown := 0.0
+var _hand_wheel_spin := 0.0
 
 # --- visual nodes --------------------------------------------------------------
 var body_pivot: Node3D
@@ -53,8 +74,8 @@ var door_rear: Node3D
 var headlights: Array[SpotLight3D] = []
 var brake_light_mat: StandardMaterial3D
 var reverse_light_mat: StandardMaterial3D
+var hand_wheel: Node3D                    # cockpit steering wheel (rotates with input)
 var chase_mount: Node3D
-var driver_mount: Node3D
 var top_mount: Node3D
 var livery_color := Color(0.85, 0.16, 0.14)
 
@@ -72,7 +93,6 @@ func _ready() -> void:
 		body_pivot.name = "BodyPivot"
 		add_child(body_pivot)
 	chase_mount = get_node_or_null("Mounts/ChaseMount")
-	driver_mount = get_node_or_null("Mounts/DriverMount")
 	top_mount = get_node_or_null("Mounts/TopMount")
 	_build_visual()
 
@@ -86,41 +106,86 @@ func configure(color: Color, is_night: bool) -> void:
 	wheel_pivots.clear()
 	wheel_spinners.clear()
 	headlights.clear()
+	hand_wheel = null
 	_build_visual()
 
 
 # ---------------------------------------------------------------- visuals
 func _build_visual() -> void:
+	var L := LENGTH
+	var W := WIDTH
+	var half_l := L * 0.5
+	var half_w := W * 0.5
 	var paint := MeshFactory.mat(livery_color, 0.35, 0.3)
+	var paint_dark := MeshFactory.mat(livery_color.darkened(0.15), 0.4, 0.3)
 	var trim := MeshFactory.mat(Color(0.92, 0.92, 0.94), 0.4, 0.2)
 	var dark := MeshFactory.mat(Color(0.08, 0.08, 0.09), 0.85)
-	var glass := MeshFactory.glass_mat(Color(0.2, 0.32, 0.45, 0.72))
 	var chrome := MeshFactory.mat(Color(0.75, 0.77, 0.8), 0.2, 0.9)
-	var L := 11.0
-	var W := 2.5
-	# Lower body
-	MeshFactory.box(body_pivot, Vector3(W, 1.3, L), Vector3(0, 1.15, 0), paint)
-	# Upper body (window band) with white roof stripe
-	MeshFactory.box(body_pivot, Vector3(W - 0.04, 1.25, L - 0.02), Vector3(0, 2.4, 0), glass)
-	MeshFactory.box(body_pivot, Vector3(W, 0.32, L), Vector3(0, 3.16, 0), trim)
-	# Pillars between windows
+	# Side windows are tinted; the windshield is nearly clear so the driver view stays bright.
+	# Low metallic: seen from the driver's seat at grazing angles the panes must not turn
+	# into sky mirrors.
+	var side_glass := MeshFactory.glass_mat(Color(0.3, 0.45, 0.6, 0.34), 0.05, 0.3)
+	var front_glass := MeshFactory.glass_mat(Color(0.6, 0.75, 0.88, 0.12), 0.0, 0.35)
+	_build_shell(L, W, half_l, half_w, paint, paint_dark, trim, dark, chrome, side_glass, front_glass)
+	_build_interior(L, W, half_l, half_w, dark)
+	_build_wheels(half_l)
+	# Headlight spots (only at night)
+	if night:
+		for x in [-0.85, 0.85]:
+			var spot := SpotLight3D.new()
+			spot.position = Vector3(x, 1.1, -half_l)
+			spot.rotation_degrees = Vector3(-6.0, 0, 0)
+			spot.spot_range = 45.0
+			spot.spot_angle = 32.0
+			spot.light_energy = 4.0
+			spot.light_color = Color(1.0, 0.95, 0.85)
+			spot.shadow_enabled = false
+			body_pivot.add_child(spot)
+			headlights.append(spot)
+
+
+func _build_shell(L: float, W: float, half_l: float, half_w: float, paint: Material, paint_dark: Material,
+		trim: Material, dark: Material, chrome: Material, side_glass: Material, front_glass: Material) -> void:
+	var pillar := MeshFactory.mat(Color(0.12, 0.12, 0.13), 0.7)
+	# Lower body (side skirts up to the window sill at y=1.8). It stops at the dashboard so the
+	# deep windshield looks into the cabin instead of at a painted wall.
+	var cab_z := -half_l + 0.95
+	MeshFactory.box(body_pivot, Vector3(W, 1.3, half_l - cab_z), Vector3(0, 1.15, (half_l + cab_z) * 0.5), paint)
+	for side in [-1.0, 1.0]:
+		MeshFactory.box(body_pivot, Vector3(0.08, 1.3, cab_z + half_l), Vector3(side * (half_w - 0.04), 1.15, (cab_z - half_l) * 0.5), paint)
+	# Front panel below the windshield, then the blacked-out A-pillars.
+	MeshFactory.box(body_pivot, Vector3(W, 0.66, 0.12), Vector3(0, 0.83, -half_l + 0.06), paint)
+	for side in [-1.0, 1.0]:
+		MeshFactory.box(body_pivot, Vector3(0.1, 1.86, 0.12), Vector3(side * (half_w - 0.05), 2.09, -half_l + 0.06), pillar)
+	# Windshield: one clear pane from the bumper line up to the roof band.
+	MeshFactory.box(body_pivot, Vector3(W - 0.2, 1.86, 0.05), Vector3(0, 2.09, -half_l + 0.03), front_glass)
+	# Side windows: thin panes (not a solid glass block) so the cabin is open inside.
+	var glass_len := L - 0.14 - 0.04
+	for side in [-1.0, 1.0]:
+		MeshFactory.box(body_pivot, Vector3(0.04, 1.2, glass_len), Vector3(side * (half_w - 0.02), 2.4, 0.05), side_glass)
+	# Rear window and rear corner pillars.
+	MeshFactory.box(body_pivot, Vector3(W - 0.16, 1.2, 0.04), Vector3(0, 2.4, half_l - 0.02), side_glass)
+	for side in [-1.0, 1.0]:
+		MeshFactory.box(body_pivot, Vector3(0.1, 1.2, 0.1), Vector3(side * (half_w - 0.05), 2.4, half_l - 0.05), pillar)
+	# Window pillars on each side (thin - the cabin between them stays open).
 	for i in 6:
-		var z := -L * 0.5 + 1.2 + i * 1.75
-		MeshFactory.box(body_pivot, Vector3(W + 0.02, 1.25, 0.14), Vector3(0, 2.4, z), paint)
-	# Roof and AC unit
+		var z := -half_l + 1.2 + i * 1.75
+		for side in [-1.0, 1.0]:
+			MeshFactory.box(body_pivot, Vector3(0.1, 1.2, 0.12), Vector3(side * (half_w - 0.03), 2.4, z), pillar)
+	# Roof band, roof and AC unit.
+	MeshFactory.box(body_pivot, Vector3(W, 0.32, L), Vector3(0, 3.16, 0), trim)
 	MeshFactory.box(body_pivot, Vector3(W - 0.3, 0.14, L - 0.4), Vector3(0, 3.38, 0), trim)
 	MeshFactory.box(body_pivot, Vector3(1.4, 0.35, 2.2), Vector3(0, 3.6, 1.0), trim)
-	# Front: windshield, bumper, destination sign
-	MeshFactory.box(body_pivot, Vector3(W - 0.2, 1.9, 0.08), Vector3(0, 2.15, -L * 0.5 - 0.01), glass)
-	MeshFactory.box(body_pivot, Vector3(W, 0.45, 0.3), Vector3(0, 0.62, -L * 0.5 - 0.1), dark)
-	MeshFactory.box(body_pivot, Vector3(W - 0.5, 0.3, 0.08), Vector3(0, 3.2, -L * 0.5 - 0.02), MeshFactory.mat(Color(0.95, 0.65, 0.1), 0.4, 0.0, Color(1.0, 0.7, 0.1), 2.0))
-	# Rear bumper and engine grille
-	MeshFactory.box(body_pivot, Vector3(W, 0.45, 0.3), Vector3(0, 0.62, L * 0.5 + 0.1), dark)
-	MeshFactory.box(body_pivot, Vector3(W - 0.6, 0.9, 0.06), Vector3(0, 1.4, L * 0.5 + 0.02), dark)
+	# Destination sign on the front roof band.
+	MeshFactory.box(body_pivot, Vector3(W - 0.5, 0.26, 0.06), Vector3(0, 3.16, -half_l - 0.02), MeshFactory.mat(Color(0.95, 0.65, 0.1), 0.4, 0.0, Color(1.0, 0.7, 0.1), 2.0))
+	# Bumpers and rear engine grille.
+	MeshFactory.box(body_pivot, Vector3(W, 0.45, 0.3), Vector3(0, 0.62, -half_l - 0.1), dark)
+	MeshFactory.box(body_pivot, Vector3(W, 0.45, 0.3), Vector3(0, 0.62, half_l + 0.1), dark)
+	MeshFactory.box(body_pivot, Vector3(W - 0.6, 0.8, 0.06), Vector3(0, 1.35, half_l + 0.02), dark)
 	# Headlights
 	var head_mat := MeshFactory.mat(Color(1, 1, 0.95), 0.2, 0.0, Color(1.0, 0.95, 0.85), 3.0 if night else 0.3)
 	for x in [-0.85, 0.85]:
-		MeshFactory.box(body_pivot, Vector3(0.45, 0.28, 0.08), Vector3(x, 1.05, -L * 0.5 - 0.03), head_mat)
+		MeshFactory.box(body_pivot, Vector3(0.45, 0.26, 0.06), Vector3(x, 0.95, -half_l - 0.03), head_mat)
 	# Tail lights (brake) and reverse lights
 	brake_light_mat = StandardMaterial3D.new()
 	brake_light_mat.albedo_color = Color(0.75, 0.08, 0.08)
@@ -133,63 +198,149 @@ func _build_visual() -> void:
 	reverse_light_mat.emission = Color(1, 1, 1)
 	reverse_light_mat.emission_energy_multiplier = 0.0
 	for x in [-0.9, 0.9]:
-		MeshFactory.box(body_pivot, Vector3(0.4, 0.3, 0.06), Vector3(x, 1.3, L * 0.5 + 0.03), brake_light_mat)
-		MeshFactory.box(body_pivot, Vector3(0.25, 0.18, 0.06), Vector3(x, 0.98, L * 0.5 + 0.03), reverse_light_mat)
-	# Mirrors
+		MeshFactory.box(body_pivot, Vector3(0.4, 0.3, 0.06), Vector3(x, 1.3, half_l + 0.03), brake_light_mat)
+		MeshFactory.box(body_pivot, Vector3(0.25, 0.18, 0.06), Vector3(x, 0.98, half_l + 0.03), reverse_light_mat)
+	# Mirrors on short arms.
 	for x in [-1.45, 1.45]:
-		MeshFactory.box(body_pivot, Vector3(0.12, 0.45, 0.25), Vector3(x, 2.5, -L * 0.5 + 0.6), dark)
-		MeshFactory.box(body_pivot, Vector3(0.06, 0.4, 0.04), Vector3(x + (0.05 if x < 0 else -0.05), 2.5, -L * 0.5 + 0.5), chrome)
+		var inward := 1.0 if x < 0 else -1.0
+		MeshFactory.box(body_pivot, Vector3(0.12, 0.45, 0.25), Vector3(x, 2.5, -half_l + 0.6), dark)
+		MeshFactory.box(body_pivot, Vector3(0.06, 0.4, 0.04), Vector3(x + inward * 0.05, 2.5, -half_l + 0.5), chrome)
+		MeshFactory.box(body_pivot, Vector3(0.3, 0.04, 0.04), Vector3(x + inward * 0.18, 2.7, -half_l + 0.6), chrome)
 	# Doors on the right side (curb side). Two door leaves per door.
 	door_front = Node3D.new()
-	door_front.position = Vector3(W * 0.5 + 0.02, 0, -L * 0.5 + 1.9)
+	door_front.position = Vector3(half_w + 0.02, 0, FRONT_DOOR_Z)
 	body_pivot.add_child(door_front)
 	door_rear = Node3D.new()
-	door_rear.position = Vector3(W * 0.5 + 0.02, 0, 0.8)
+	door_rear.position = Vector3(half_w + 0.02, 0, REAR_DOOR_Z)
 	body_pivot.add_child(door_rear)
 	for door in [door_front, door_rear]:
-		MeshFactory.box(door, Vector3(0.06, 2.1, 1.3), Vector3(0, 1.6, 0), MeshFactory.mat(livery_color.darkened(0.15), 0.4, 0.3))
-		MeshFactory.box(door, Vector3(0.07, 1.0, 1.1), Vector3(0, 2.0, 0), glass)
+		MeshFactory.box(door, Vector3(0.06, 2.1, 1.3), Vector3(0, 1.6, 0), paint_dark)
+		MeshFactory.box(door, Vector3(0.07, 1.0, 1.1), Vector3(0, 2.0, 0), side_glass)
 	# Door frames (dark openings visible when doors slide open)
-	for z in [door_front.position.z, door_rear.position.z]:
-		MeshFactory.box(body_pivot, Vector3(0.04, 2.2, 1.4), Vector3(W * 0.5 - 0.06, 1.55, z), dark)
-	# Interior: seats and driver
+	for z in [FRONT_DOOR_Z, REAR_DOOR_Z]:
+		MeshFactory.box(body_pivot, Vector3(0.04, 2.2, 1.4), Vector3(half_w - 0.06, 1.55, z), dark)
+
+
+func _build_interior(L: float, W: float, half_l: float, _half_w: float, _dark: Material) -> void:
+	var interior_dark := MeshFactory.mat(Color(0.13, 0.13, 0.15), 0.9)
+	var dash_mat := MeshFactory.mat(Color(0.1, 0.1, 0.12), 0.85)
+	var dash_top_mat := MeshFactory.mat(Color(0.2, 0.2, 0.22), 0.9)
+	var floor_mat := MeshFactory.mat(Color(0.24, 0.25, 0.27), 0.95)
+	var ceiling_mat := MeshFactory.mat(Color(0.88, 0.88, 0.86), 0.9, 0.0, Color(1.0, 0.95, 0.85), 0.3 if night else 0.0)
 	var seat_mat := MeshFactory.mat(Color(0.2, 0.3, 0.55), 0.9)
+	var rail_mat := MeshFactory.mat(Color(0.95, 0.75, 0.15), 0.4, 0.4)
+	var rubber := MeshFactory.mat(Color(0.1, 0.1, 0.11), 0.95)
+	# Floor and ceiling (their inner faces are what the driver camera sees).
+	MeshFactory.box(body_pivot, Vector3(W - 0.1, 0.06, L - 0.2), Vector3(0, FLOOR_Y - 0.03, 0), floor_mat)
+	MeshFactory.box(body_pivot, Vector3(W - 0.16, 0.03, L - 0.2), Vector3(0, CEILING_Y + 0.015, 0), ceiling_mat)
+	# Dark header panel above the windshield (sun strip / destination sign housing). It reaches
+	# back over the driver so the camera never looks at a bright ceiling at the top of the frame.
+	MeshFactory.box(body_pivot, Vector3(W - 0.2, 0.1, 0.7), Vector3(0, CEILING_Y - 0.05, -half_l + 0.42), interior_dark)
+	# Interior wall panels below the windows. The outer shell is back-face culled from inside,
+	# so without these the driver would see the road through the body under the side windows.
+	var wall_mat := MeshFactory.mat(Color(0.3, 0.31, 0.34), 0.9)
+	var wall_h := 1.8 - FLOOR_Y
+	var wall_y := (1.8 + FLOOR_Y) * 0.5
+	var wall_x := W * 0.5 - 0.11   # just inside the 0.08 m side skirts, no coplanar faces
+	MeshFactory.box(body_pivot, Vector3(0.04, wall_h, L - 0.3), Vector3(-wall_x, wall_y, 0.02), wall_mat)
+	# Curb side: three panels that leave the two door openings free.
+	var door_half := 0.72
+	var segments := [
+		[-half_l + 0.14, FRONT_DOOR_Z - door_half],
+		[FRONT_DOOR_Z + door_half, REAR_DOOR_Z - door_half],
+		[REAR_DOOR_Z + door_half, half_l - 0.14],
+	]
+	for seg in segments:
+		var z0: float = seg[0]
+		var z1: float = seg[1]
+		if z1 - z0 < 0.05:
+			continue
+		MeshFactory.box(body_pivot, Vector3(0.04, wall_h, z1 - z0), Vector3(wall_x, wall_y, (z0 + z1) * 0.5), wall_mat)
+	# Driver-side dashboard (deep, tall) and the lower panel on the entrance side.
+	var dash_front := -half_l + 0.07
+	MeshFactory.box(body_pivot, Vector3(1.15, DASH_TOP_Y - 1.1, 0.56), Vector3(-0.625, (DASH_TOP_Y + 1.1) * 0.5, dash_front + 0.28), dash_mat)
+	MeshFactory.box(body_pivot, Vector3(1.15, 0.04, 0.58), Vector3(-0.625, DASH_TOP_Y + 0.02, dash_front + 0.28), dash_top_mat)
+	MeshFactory.box(body_pivot, Vector3(1.25, ENTRANCE_DASH_TOP_Y - 1.1, 0.45), Vector3(0.575, (ENTRANCE_DASH_TOP_Y + 1.1) * 0.5, dash_front + 0.225), dash_mat)
+	MeshFactory.box(body_pivot, Vector3(1.25, 0.04, 0.47), Vector3(0.575, ENTRANCE_DASH_TOP_Y + 0.02, dash_front + 0.225), dash_top_mat)
+	# Instrument binnacle on the dash in front of the driver, tilted towards the eye, with a glowing display.
+	var binnacle := Node3D.new()
+	binnacle.position = Vector3(DRIVER_EYE.x, DASH_TOP_Y + 0.08, dash_front + 0.5)
+	binnacle.rotation.x = deg_to_rad(-18.0)
+	body_pivot.add_child(binnacle)
+	MeshFactory.box(binnacle, Vector3(0.46, 0.15, 0.14), Vector3.ZERO, interior_dark)
+	MeshFactory.box(binnacle, Vector3(0.38, 0.09, 0.02), Vector3(0, 0.0, 0.075), MeshFactory.mat(Color(0.05, 0.09, 0.13), 0.3, 0.0, Color(0.3, 0.75, 1.0), 1.0 if night else 0.7))
+	# Warm cabin light at night so the dashboard, wheel and seats are not pitch black.
+	if night:
+		var cabin_light := OmniLight3D.new()
+		cabin_light.position = Vector3(-0.2, CEILING_Y - 0.12, -4.1)
+		cabin_light.omni_range = 5.0
+		cabin_light.light_energy = 0.9
+		cabin_light.light_color = Color(1.0, 0.9, 0.75)
+		cabin_light.shadow_enabled = false
+		body_pivot.add_child(cabin_light)
+	# Steering column and hand wheel (the wheel is rotated in _update_visuals).
+	var axis := Vector3(0, cos(HAND_WHEEL_TILT), sin(HAND_WHEEL_TILT))   # wheel axis, up towards the driver
+	MeshFactory.cylinder(body_pivot, 0.035, 0.5, HAND_WHEEL_POS - axis * 0.25, interior_dark, Vector3(HAND_WHEEL_TILT, 0, 0), 8)
+	hand_wheel = Node3D.new()
+	hand_wheel.name = "HandWheel"
+	hand_wheel.position = HAND_WHEEL_POS
+	hand_wheel.rotation.x = HAND_WHEEL_TILT
+	body_pivot.add_child(hand_wheel)
+	var rim := TorusMesh.new()
+	rim.inner_radius = HAND_WHEEL_RADIUS - 0.03
+	rim.outer_radius = HAND_WHEEL_RADIUS + 0.03
+	rim.rings = 32
+	rim.ring_segments = 10
+	var rim_mi := MeshInstance3D.new()
+	rim_mi.mesh = rim
+	rim_mi.material_override = rubber
+	hand_wheel.add_child(rim_mi)
+	MeshFactory.cylinder(hand_wheel, 0.075, 0.06, Vector3.ZERO, interior_dark, Vector3.ZERO, 12)
+	for spoke_angle in [PI * 0.5, -PI * 0.5, PI]:
+		var arm := Node3D.new()
+		arm.rotation.y = spoke_angle
+		hand_wheel.add_child(arm)
+		MeshFactory.box(arm, Vector3(0.05, 0.03, HAND_WHEEL_RADIUS), Vector3(0, 0, -HAND_WHEEL_RADIUS * 0.5), interior_dark)
+	# Top marker on the rim so the rotation reads well.
+	MeshFactory.box(hand_wheel, Vector3(0.05, 0.04, 0.07), Vector3(0, 0, -HAND_WHEEL_RADIUS), MeshFactory.mat(Color(0.9, 0.3, 0.25), 0.5))
+	# Driver seat on a raised platform (the eye point sits above the cushion).
+	MeshFactory.box(body_pivot, Vector3(0.9, 0.22, 0.9), Vector3(DRIVER_EYE.x, FLOOR_Y + 0.11, -3.8), interior_dark)
+	MeshFactory.box(body_pivot, Vector3(0.6, 0.14, 0.55), Vector3(DRIVER_EYE.x, 1.62, -3.8), rubber)
+	MeshFactory.box(body_pivot, Vector3(0.6, 0.8, 0.12), Vector3(DRIVER_EYE.x, 2.1, -3.47), rubber)
+	# Passenger seats: cushion + backrest, no seat in front of the rear door.
 	for i in 5:
-		var z := -L * 0.5 + 3.4 + i * 1.5
-		MeshFactory.box(body_pivot, Vector3(0.9, 0.9, 0.5), Vector3(-0.7, 1.8, z), seat_mat)
-		MeshFactory.box(body_pivot, Vector3(0.9, 0.9, 0.5), Vector3(0.7, 1.8, z), seat_mat)
-	MeshFactory.box(body_pivot, Vector3(0.7, 0.9, 0.5), Vector3(-0.75, 1.85, -L * 0.5 + 1.6), MeshFactory.mat(Color(0.15, 0.15, 0.18)))
-	MeshFactory.cylinder(body_pivot, 0.22, 0.04, Vector3(-0.75, 2.05, -L * 0.5 + 1.0), dark, Vector3(PI * 0.35, 0, 0), 14)
+		var z := -half_l + 3.4 + i * 1.5
+		for x in [-0.72, 0.72]:
+			if x > 0.0 and absf(z - REAR_DOOR_Z) < 0.95:
+				continue
+			MeshFactory.box(body_pivot, Vector3(0.3, 0.42, 0.3), Vector3(x, FLOOR_Y + 0.21, z), interior_dark)
+			MeshFactory.box(body_pivot, Vector3(0.85, 0.12, 0.5), Vector3(x, 1.5, z), seat_mat)
+			MeshFactory.box(body_pivot, Vector3(0.85, 0.7, 0.1), Vector3(x, 1.9, z + 0.25), seat_mat)
+	# Yellow handrails along the ceiling and a pole at each door.
+	for x in [-0.45, 0.45]:
+		MeshFactory.cylinder(body_pivot, 0.02, L - 4.0, Vector3(x, CEILING_Y - 0.25, 1.4), rail_mat, Vector3(PI * 0.5, 0, 0), 6)
+	for z in [FRONT_DOOR_Z + 0.85, REAR_DOOR_Z + 0.85]:
+		MeshFactory.cylinder(body_pivot, 0.02, CEILING_Y - FLOOR_Y, Vector3(0.75, (CEILING_Y + FLOOR_Y) * 0.5, z), rail_mat, Vector3.ZERO, 6)
+
+
+func _build_wheels(half_l: float) -> void:
 	# Wheels: 2 front (steer) + 4 rear (dual)
 	var rim := MeshFactory.mat(Color(0.7, 0.7, 0.72), 0.3, 0.8)
 	var tire := MeshFactory.mat(Color(0.06, 0.06, 0.07), 0.95)
 	for side in [-1.0, 1.0]:
 		var pivot := Node3D.new()
-		pivot.position = Vector3(side * 1.0, WHEEL_RADIUS, -L * 0.5 + 1.9)
+		pivot.position = Vector3(side * 1.0, WHEEL_RADIUS, -half_l + 1.9)
 		body_pivot.add_child(pivot)
 		var spinner := _make_wheel(pivot, tire, rim, side)
 		wheel_pivots.append(pivot)
 		wheel_spinners.append(spinner)
 		var rear := Node3D.new()
-		rear.position = Vector3(side * 1.0, WHEEL_RADIUS, L * 0.5 - 2.6)
+		rear.position = Vector3(side * 1.0, WHEEL_RADIUS, half_l - 2.6)
 		body_pivot.add_child(rear)
 		wheel_spinners.append(_make_wheel(rear, tire, rim, side))
-	# Headlight spots (only at night)
-	if night:
-		for x in [-0.85, 0.85]:
-			var spot := SpotLight3D.new()
-			spot.position = Vector3(x, 1.1, -L * 0.5)
-			spot.rotation_degrees = Vector3(-6.0, 0, 0)
-			spot.spot_range = 45.0
-			spot.spot_angle = 32.0
-			spot.light_energy = 4.0
-			spot.light_color = Color(1.0, 0.95, 0.85)
-			spot.shadow_enabled = false
-			body_pivot.add_child(spot)
-			headlights.append(spot)
 
 
-func _make_wheel(parent: Node3D, tire: Material, rim: Material, side: float) -> Node3D:
+func _make_wheel(parent: Node3D, tire: Material, rim: Material, _side: float) -> Node3D:
 	var spinner := Node3D.new()
 	parent.add_child(spinner)
 	var mesh := CylinderMesh.new()
@@ -286,6 +437,14 @@ func _physics_process(delta: float) -> void:
 	_update_visuals(delta, throttle, brake)
 
 
+## Current yaw rate of the bus in rad/s (positive = turning right). Used by the camera
+## to look into turns.
+func yaw_rate() -> float:
+	if absf(speed) < 0.05:
+		return 0.0
+	return speed / WHEELBASE * tan(steer_angle)
+
+
 func _update_visuals(delta: float, throttle: float, brake: float) -> void:
 	# Wheel spin and steering.
 	var spin := speed * delta / WHEEL_RADIUS
@@ -293,6 +452,11 @@ func _update_visuals(delta: float, throttle: float, brake: float) -> void:
 		s.rotate_x(-spin)
 	for p in wheel_pivots:
 		p.rotation.y = -steer_angle
+	# Cockpit steering wheel follows the steering input (matches the touch wheel).
+	if hand_wheel != null:
+		var target_spin := clampf(input_steer, -1.0, 1.0) * HAND_WHEEL_MAX
+		_hand_wheel_spin = lerpf(_hand_wheel_spin, target_spin, clampf(delta * 12.0, 0.0, 1.0))
+		hand_wheel.basis = Basis.from_euler(Vector3(HAND_WHEEL_TILT, 0.0, 0.0)) * Basis(Vector3.UP, -_hand_wheel_spin)
 	# Body roll and pitch.
 	var direction_sign := signf(speed) if absf(speed) > 0.01 else 1.0
 	var target_roll := steer_angle * clampf(absf(speed) / 8.0, 0.0, 1.0) * 0.12 * direction_sign
@@ -323,13 +487,14 @@ func set_doors(open: bool) -> void:
 	doors_open = open
 	if _door_tween and _door_tween.is_valid():
 		_door_tween.kill()
-	_door_tween = create_tween().set_parallel(true)
+	# Runs on physics ticks so the animation stays smooth with physics interpolation.
+	_door_tween = create_tween().set_parallel(true).set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	var offset := 1.05 if open else 0.0
 	var out := 0.12 if open else 0.0
-	var base_x := 2.5 * 0.5 + 0.02
+	var base_x := WIDTH * 0.5 + 0.02
 	# Door leaves slide outwards and backwards along the body.
-	_door_tween.tween_property(door_front, "position", Vector3(base_x + out, 0.0, -11.0 * 0.5 + 1.9 + offset), 0.55).set_trans(Tween.TRANS_SINE)
-	_door_tween.tween_property(door_rear, "position", Vector3(base_x + out, 0.0, 0.8 + offset), 0.55).set_trans(Tween.TRANS_SINE)
+	_door_tween.tween_property(door_front, "position", Vector3(base_x + out, 0.0, FRONT_DOOR_Z + offset), 0.55).set_trans(Tween.TRANS_SINE)
+	_door_tween.tween_property(door_rear, "position", Vector3(base_x + out, 0.0, REAR_DOOR_Z + offset), 0.55).set_trans(Tween.TRANS_SINE)
 	AudioSynth.play("door", -4.0)
 	doors_changed.emit(open)
 
@@ -348,11 +513,17 @@ func speed_kmh() -> float:
 
 ## World position of the front door (used by passengers).
 func front_door_position() -> Vector3:
-	return to_global(Vector3(1.8, 0.0, -11.0 * 0.5 + 1.9))
+	return to_global(Vector3(1.8, 0.0, FRONT_DOOR_Z))
 
 
 func rear_door_position() -> Vector3:
-	return to_global(Vector3(1.8, 0.0, 0.8))
+	return to_global(Vector3(1.8, 0.0, REAR_DOOR_Z))
+
+
+## World-space transform of the driver's eye point, including body roll and pitch.
+func driver_eye_transform() -> Transform3D:
+	var cab := body_pivot.global_transform
+	return Transform3D(cab.basis, cab * DRIVER_EYE)
 
 
 func apply_damage(amount: float) -> void:

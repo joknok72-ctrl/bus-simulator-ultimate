@@ -307,14 +307,16 @@ func _build_props() -> void:
 				for sz in [-1.0, 1.0]:
 					var lp := center + Vector3(sx * edge, 0.16, sz * edge)
 					lamp_xforms.append(Transform3D(Basis.from_euler(Vector3(0, atan2(-sx, -sz) + PI, 0)), lp))
-			# Trees along the sidewalks.
+			# Trees along the inner edge of the sidewalks (away from the kerb so their crowns
+			# do not brush the chase camera).
 			var spacing := 12.0
 			var count := int((cell_half * 2.0 - 8.0) / spacing)
+			var tree_edge := cell_half - CityLayout.SIDEWALK + 0.7
 			for k in count:
 				var offset := -cell_half + 6.0 + k * spacing
 				for candidate in [
-					center + Vector3(offset, 0.16, -edge), center + Vector3(offset, 0.16, edge),
-					center + Vector3(-edge, 0.16, offset), center + Vector3(edge, 0.16, offset)]:
+					center + Vector3(offset, 0.16, -tree_edge), center + Vector3(offset, 0.16, tree_edge),
+					center + Vector3(-tree_edge, 0.16, offset), center + Vector3(tree_edge, 0.16, offset)]:
 					if _near_stop(candidate, 9.0) or _rng.randf() < 0.25:
 						continue
 					var s := _rng.randf_range(0.8, 1.25)

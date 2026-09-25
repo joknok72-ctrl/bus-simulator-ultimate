@@ -24,6 +24,7 @@ func setup(idx: int, world_pos: Vector3, travel_dir: Vector3, passenger_count: i
 	is_terminal = terminal
 	global_position = world_pos
 	look_at(world_pos + travel_dir, Vector3.UP)
+	reset_physics_interpolation()
 	_build_zone()
 	if terminal:
 		_build_terminal(night)

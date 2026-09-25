@@ -26,9 +26,11 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 
 | | |
 |---|---|
-| ![Main menu (English)](docs/screenshots/01_menu_home_en.png) | ![القائمة الرئيسية (عربي)](docs/screenshots/07_menu_home_ar.png) |
-| ![Driving – chase camera](docs/screenshots/09_game_driving_chase.png) | ![Night route](docs/screenshots/12_game_night_route.png) |
-| ![Bus stop – boarding](docs/screenshots/11_game_bus_stop_boarding.png) | ![Route selection](docs/screenshots/02_menu_routes.png) |
+| ![Driver seat – cockpit view](docs/screenshots/10_game_driver_camera.png) | ![Driver seat – turning, wheel and body roll](docs/screenshots/13_game_driver_turning.png) |
+| ![Driving – chase camera](docs/screenshots/09_game_driving_chase.png) | ![Night route from the driver seat](docs/screenshots/12_game_night_route.png) |
+| ![Bus stop – boarding (chase)](docs/screenshots/11_game_bus_stop_boarding.png) | ![Bus stop – doors open (driver seat)](docs/screenshots/15_game_driver_at_stop.png) |
+| ![High view](docs/screenshots/14_game_top_camera.png) | ![Main menu (English)](docs/screenshots/01_menu_home_en.png) |
+| ![القائمة الرئيسية (عربي)](docs/screenshots/07_menu_home_ar.png) | ![Route selection](docs/screenshots/02_menu_routes.png) |
 
 اللقطات مأخوذة من المحرّك 4.7.2-stable نفسه (`tools/screenshot.gd` تحت Xvfb + Mesa). / Captured from the real engine build
 (`tools/screenshot.gd` under Xvfb + Mesa software OpenGL).
@@ -44,7 +46,8 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 5. [بناء APK لأندرويد | Build the Android APK](#بناء-apk-لأندرويد--build-the-android-apk)
 6. [التحقق والاختبارات | Validation & tests](#التحقق-والاختبارات--validation--tests)
 7. [بنية المشروع | Project structure](#بنية-المشروع--project-structure)
-8. [الرخص | Licenses](#الرخص--licenses)
+8. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
+9. [الرخص | Licenses](#الرخص--licenses)
 
 ---
 
@@ -59,7 +62,7 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | نتيجة ونجوم (1–3) وعملات لشراء ألوان (طلاءات) للحافلة من المرآب | Score, 1–3 stars and coins to buy bus liveries in the garage |
 | حفظ التقدّم محلياً (`user://save.cfg`) | Local save of progress (`user://save.cfg`) |
 | واجهة لمس كاملة: عجلة قيادة، أزرار، أو إمالة الهاتف (Accelerometer) | Full touch UI: steering wheel, buttons, or phone tilt (accelerometer) |
-| 3 كاميرات: تتبّع، مقعد السائق، من الأعلى | 3 cameras: chase, driver seat, top-down |
+| 3 كاميرات مع انتقال سلس بينها: تتبّع (تتجنّب المباني)، مقعد السائق (قمرة قيادة حقيقية: لوحة عدادات، مقود يدور مع التوجيه، أعمدة، مرايا، النظر داخل المنعطف، اهتزاز خفيف مع السرعة)، ومن الأعلى | 3 cameras with smooth blending: chase (keeps clear of buildings), driver seat (real cockpit: dashboard, steering wheel that turns with your input, pillars, mirrors, looks into turns, gentle speed vibration) and top-down |
 | خريطة صغيرة، عدّاد سرعة، مؤقّت، سهم توجيه إلى المحطة التالية | Minimap, speedometer, timer, guide arrow to the next stop |
 | أصوات مولّدة برمجياً (محرك، بوق، أبواب، نقر) واهتزاز | Procedural audio (engine, horn, doors, clicks) and vibration |
 | عربي/إنجليزي مع اتجاه واجهة تلقائي (RTL) | Arabic/English with automatic RTL layout |
@@ -137,17 +140,18 @@ Short version (Linux, after preparing JDK 17 and the Android SDK as in `docs/AND
 `sh tools/build_android.sh`. It fetches the official Android templates if missing, imports the project and exports
 `build/CityBusDriver-debug.apk`; pass `RELEASE_KEYSTORE`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASS` to also export a signed
 release APK. The Android preset (`export_presets.cfg`) targets **arm64-v8a**, package `com.khaled.citybusdriver`,
-version `1.0.0` (code 1), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
+version `1.1.0` (code 2), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
 
 ---
 
 ## التحقق والاختبارات | Validation & tests
 
-`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (45 فحصاً: الترجمات، صفحات القائمة، توليد المدينة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب، التصادمات، إنهاء الخط والنتيجة)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
+`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (59 فحصاً: الترجمات، صفحات القائمة، توليد المدينة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب، التصادمات، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع: موضع العين، خط الرؤية، الانتقال بين الكاميرات، تجنّب المباني)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
 
 `tools/validate.sh` runs, with Godot 4.7.2-stable: the import, the headless smoke test `tests/smoke_test.gd`
-(45 checks: translations, menu pages, city generation, all four routes, driving/braking, stops and boarding, collisions,
-route completion and scoring) and a headless boot of the main scene.
+(59 checks: translations, menu pages, city generation, all four routes, driving/braking, stops and boarding, collisions,
+route completion and scoring, and the camera rig: driver eye placement, clear line of sight, look-into-turn, view blending,
+chase camera obstacle avoidance) and a headless boot of the main scene.
 
 ```sh
 GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
@@ -156,7 +160,7 @@ GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
 يشغّل GitHub Actions السكربت نفسه قبل تصدير الـ APK ويعرض النتيجة في ملخّص التشغيل. / GitHub Actions runs the same script before exporting the APK and shows the result in the run summary.
 
 آخر نتيجة مسجّلة (2026-09-25، Godot 4.7.2.stable.official) / last recorded result:
-`import errors = 0` · `45 checks, 0 failures – SMOKE TEST OK` · `boot exit 0` · debug APK exported and verified with
+`import errors = 0` · `59 checks, 0 failures – SMOKE TEST OK` · `boot exit 0` · debug APK exported and verified with
 `apksigner` — see [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and `build/logs/`.
 
 `tools/screenshot.gd` يلتقط لقطات حقيقية من اللعبة (يحتاج شاشة أو Xvfb):
@@ -189,9 +193,31 @@ theme/main_theme.tres    سمة الواجهة
 tests/smoke_test.gd      اختبار دخان بلا واجهة رسومية
 tools/                   build_android.sh, validate.sh, fetch_android_templates.py, screenshot.gd
 docs/ANDROID_BUILD.md    دليل تجهيز أندرويد والتصدير خطوة بخطوة
-docs/screenshots/        لقطات من اللعبة
+docs/screenshots/        لقطات من اللعبة (المجلد docs/ مُتجاهَل من Godot عبر .gdignore فلا يدخل في الـ APK)
 build/                   مخرجات البناء: CityBusDriver-debug.apk, BUILD_INFO.txt, logs/ (مُتجاهَلة من Godot عبر .gdignore)
 ```
+
+---
+
+## ما الجديد في 1.1.0 | What's new in 1.1.0
+
+**كاميرا السائق أُعيد بناؤها** — كانت الكاميرا سابقاً تُوضَع داخل جدار جانبي مُصمَت للحافلة (ألواح النوافذ كانت صناديق بعرض الحافلة كلّه) فيظهر للّاعب لون الطلاء فقط ولا يشعر بأنه يقود. الآن:
+
+* قمرة قيادة حقيقية داخل الحافلة: زجاج أمامي صافٍ، نوافذ جانبية رقيقة، أعمدة، لوحة عدادات مع شاشة مضيئة، مقود يدور مع التوجيه، مقعد السائق، جدران داخلية، أرضية وسقف، مقاعد الركاب ومقابض، وإضاءة داخلية دافئة ليلاً.
+* نقطة عين صحيحة (`Bus.DRIVER_EYE`) خلف المقود بيسار الحافلة: الطريق والأفق وأعلى المقود كلّها في الإطار، ولا يقطع أي جسم مجال الرؤية.
+* الكاميرا تتبع ميل الجسم وتنظر قليلاً داخل المنعطف بحسب سرعة دوران الحافلة الحقيقية، مع اهتزاز خفيف يزداد مع السرعة وزاوية رؤية تتّسع قليلاً عند الإسراع.
+* الانتقال بين الكاميرات الثلاث سلس (0.45 ث) بلا قفزات؛ كاميرا التتبّع أصبحت أقرب قليلاً ولا تدخل المباني (كشف عوائق بشعاع)، وتحديث الكاميرا يتم بعد حركة الحافلة في نفس التكّة الفيزيائية لمنع الارتجاج، مع تفعيل `physics_interpolation`.
+* السهم الإرشادي في وضع السائق يُرسَم على الطريق أمام الحافلة ويختفي عند الوصول إلى المحطة؛ عدّاد السرعة انتقل من منتصف الشاشة كي لا يحجب الحافلة في وضع التتبّع؛ العدّ التنازلي أكبر وأوضح؛ زر الرجوع في أندرويد يوقف اللعبة مؤقتاً/يعود للقائمة.
+
+**Driver camera rebuilt** — the old driver view was placed inside a solid side wall of the bus (the window band was a full-width box), so the player saw the paint colour and never felt like driving. Now:
+
+* A real cockpit inside the bus: clear windshield, thin side panes, pillars, dashboard with a glowing display, a steering wheel that turns with your input, driver seat, interior wall panels, floor and ceiling, passenger seats and handrails, warm cabin light at night.
+* A correct eye point (`Bus.DRIVER_EYE`) behind the wheel on the left: road, horizon and the top of the wheel are in frame and nothing intersects the view.
+* The camera follows body roll/pitch, looks slightly into turns from the bus's real yaw rate, vibrates gently with speed and widens its FOV a little when fast.
+* Smooth 0.45 s blends between the three cameras; the chase camera is a bit closer and never clips into buildings (ray-cast obstacle avoidance); the rig updates after the bus in the same physics tick and `physics_interpolation` is on, so there is no jitter.
+* The guide arrow is drawn on the road ahead in the cockpit view and hides at the stop; the speedometer moved off the screen centre so it no longer hides the bus in chase view; bigger countdown; the Android back button pauses / navigates back.
+
+Validation: `tests/smoke_test.gd` grew from 45 to 59 checks (eye placement, clear line of sight, cockpit wheel, look-into-turn, view blending, obstacle avoidance). Version 1.1.0 (Android `versionCode` 2).
 
 ---
 

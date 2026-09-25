@@ -8,6 +8,9 @@ const STATE_DRIVING := 1
 const STATE_BOARDING := 2
 const STATE_WAIT_CLOSE := 3
 const STATE_FINISHED := 4
+const CAM_CHASE := 0
+const CAM_DRIVER := 1
+const CAM_TOP := 2
 
 var _failures := 0
 var _checks := 0
@@ -39,6 +42,7 @@ func _run() -> void:
 	await _test_autoloads()
 	await _test_main_menu()
 	await _test_gameplay()
+	await _test_camera()
 	await _test_all_routes()
 	print("== %d checks, %d failures ==" % [_checks, _failures])
 	if _failures == 0:
@@ -165,6 +169,82 @@ func _test_gameplay() -> void:
 	_check(gs.get_route_stars("route_1") >= 1, "stars saved (%d)" % gs.get_route_stars("route_1"))
 	await _frames(600)
 	_check(game.results.visible, "results panel shown")
+	game.queue_free()
+	await _frames(2)
+
+
+func _test_camera() -> void:
+	print("-- camera rig")
+	var gs := root.get_node("GameState")
+	gs.selected_route_id = "route_1"
+	gs.set_setting("camera", CAM_CHASE)
+	var game: Node = load("res://scenes/game.tscn").instantiate()
+	root.add_child(game)
+	await _frames(5)
+	var bus = game.bus
+	var rig = game.camera_rig
+	_check(rig.mode == CAM_CHASE, "camera starts in the mode from settings (chase)")
+	_check(rig.global_position.distance_to(bus.global_position) > 8.0, "chase camera sits behind the bus")
+	_check(bus.hand_wheel != null and bus.driver_eye_transform().origin.y > 2.0, "cockpit built (hand wheel + driver eye point)")
+	# Driver seat: the camera must sit exactly at the driver's eye and look forward, slightly down.
+	rig.set_mode(CAM_DRIVER)
+	_check(int(gs.settings.camera) == CAM_DRIVER, "camera mode persisted to settings")
+	var blend_ticks := int(0.7 * Engine.physics_ticks_per_second)   # longer than the 0.45 s blend
+	await _frames(blend_ticks)
+	var eye: Vector3 = bus.driver_eye_transform().origin
+	var cam_err: float = rig.global_position.distance_to(eye)
+	_check(cam_err < 0.01, "driver camera at the driver's eye (error %.3f m)" % cam_err)
+	var local_eye: Vector3 = bus.to_local(rig.global_position)
+	_check(local_eye.x < -0.5 and local_eye.z < -3.0 and local_eye.y > 2.3 and local_eye.y < 2.9, "driver eye is in the front-left seat (%s)" % local_eye)
+	var fwd: Vector3 = -rig.global_transform.basis.z
+	var bus_fwd: Vector3 = -bus.global_transform.basis.z
+	_check(fwd.dot(bus_fwd) > 0.98 and fwd.y < 0.0 and fwd.y > -0.2, "driver camera looks forward and slightly down")
+	# Nothing of the bus interior may sit between the eye and the windshield.
+	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
+	var ray := PhysicsRayQueryParameters3D.create(eye, eye + bus_fwd * 30.0, 1)
+	_check(space.intersect_ray(ray).is_empty(), "clear line of sight ahead of the driver camera")
+	# The cockpit wheel follows the steering input and the camera looks into the turn.
+	game.state = STATE_DRIVING
+	bus.engine_on = true
+	game.hud.touch_controls.gas.press()
+	game.hud.touch_controls.wheel.angle = deg_to_rad(90.0)
+	game.hud.touch_controls.wheel.held = true
+	await _frames(240)
+	var wheel_spin: float = bus.hand_wheel.basis.get_euler().y
+	_check(absf(wheel_spin) > 0.5, "cockpit steering wheel turns with the input (%.2f rad)" % wheel_spin)
+	var yaw_offset: float = (-rig.global_transform.basis.z).signed_angle_to(-bus.global_transform.basis.z, Vector3.UP)
+	_check(absf(yaw_offset) > deg_to_rad(2.0) and absf(yaw_offset) <= deg_to_rad(16.0), "driver camera looks into the turn (%.1f deg)" % rad_to_deg(yaw_offset))
+	game.hud.touch_controls.wheel.held = false
+	game.hud.touch_controls.gas.release()
+	# Switching back blends smoothly (no teleport) and ends behind the bus again.
+	var before: Vector3 = rig.global_position
+	rig.set_mode(CAM_CHASE)
+	await _frames(2)
+	_check(rig.global_position.distance_to(before) < 3.0, "camera switch blends instead of jumping")
+	await _frames(blend_ticks)
+	_check(rig.global_position.distance_to(bus.global_position) > 8.0, "back in chase view behind the bus")
+	# The chase camera never sits inside a building: park the bus right in front of a tall one,
+	# facing away from it, so the follow position behind the bus would be inside the wall.
+	var building: StaticBody3D = null
+	for child in game.world.get_node("Blocks").get_children():
+		if child is StaticBody3D:
+			var shape: BoxShape3D = child.get_child(0).shape
+			if shape.size.y > 8.0 and shape.size.z > 12.0:
+				building = child
+				break
+	if building != null:
+		var shape: BoxShape3D = building.get_child(0).shape
+		bus.stop_immediately()
+		var front := building.global_position + Vector3(0, -building.global_position.y, -shape.size.z * 0.5 - 7.0)
+		bus.global_transform = Transform3D(Basis.IDENTITY, front).looking_at(front + Vector3(0, 0, -30.0), Vector3.UP)
+		bus.reset_physics_interpolation()
+		rig.set_mode(CAM_TOP)
+		rig.set_mode(CAM_CHASE)
+		await _frames(blend_ticks)
+		var cam_ray := PhysicsRayQueryParameters3D.create(bus.global_position + Vector3(0, 2.5, 0), rig.global_position, 1)
+		_check(space.intersect_ray(cam_ray).is_empty(), "chase camera keeps a clear view of the bus near buildings")
+		_check(rig.global_position.distance_to(bus.global_position) < 12.0, "chase camera moved in front of the wall (%.1f m from bus)" % rig.global_position.distance_to(bus.global_position))
+	gs.set_setting("camera", CAM_CHASE)
 	game.queue_free()
 	await _frames(2)
 
