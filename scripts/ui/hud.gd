@@ -7,7 +7,8 @@ extends Control
 @onready var minimap: Minimap = $Minimap
 @onready var speedometer: Speedometer = $Speedometer
 @onready var stop_label: Label = $TopCenter/VBox/StopLabel
-@onready var distance_label: Label = $TopCenter/VBox/DistanceLabel
+@onready var distance_label: Label = $TopCenter/VBox/GuideRow/DistanceLabel
+@onready var turn_arrow: TurnArrow = $TopCenter/VBox/GuideRow/TurnArrow
 @onready var time_label: Label = $TopRight/Grid/TimeLabel
 @onready var score_label: Label = $TopRight/Grid/ScoreLabel
 @onready var passengers_label: Label = $TopRight/Grid/PassengersLabel
@@ -17,6 +18,34 @@ extends Control
 
 var _message_tween: Tween
 var _time_warning := false
+
+
+func _ready() -> void:
+	_apply_safe_area()
+	get_viewport().size_changed.connect(_apply_safe_area)
+
+
+## Keeps the HUD out of the display cutout (camera notch) and rounded corners on phones:
+## in immersive mode the game is drawn under the cutout, so the pause button, minimap and
+## stats panel are pushed inside DisplayServer.get_display_safe_area().
+func _apply_safe_area() -> void:
+	if not OS.has_feature("mobile"):
+		return
+	var vp := get_viewport()
+	if vp == null:
+		return
+	var safe := DisplayServer.get_display_safe_area()
+	var win := DisplayServer.window_get_size()
+	if safe.size.x <= 0 or safe.size.y <= 0 or win.x <= 0 or win.y <= 0:
+		return
+	var scale := vp.get_final_transform().get_scale()
+	if scale.x <= 0.0 or scale.y <= 0.0:
+		return
+	# Insets in window pixels, converted to canvas units (canvas_items stretch = uniform scale).
+	offset_left = maxi(safe.position.x, 0) / scale.x
+	offset_top = maxi(safe.position.y, 0) / scale.y
+	offset_right = -maxi(win.x - safe.end.x, 0) / scale.x
+	offset_bottom = -maxi(win.y - safe.end.y, 0) / scale.y
 
 
 func set_speed(kmh: float, limit: int, reversing: bool, doors_open: bool) -> void:
@@ -44,7 +73,33 @@ func set_next_stop(index: int, distance: float, is_terminal: bool, stops_total: 
 		stop_label.text = tr("HUD_TERMINAL")
 	else:
 		stop_label.text = "%s %d / %d" % [tr("HUD_NEXT_STOP"), index + 1, stops_total]
-	distance_label.text = "%d m" % int(distance)
+	if turn_arrow == null:
+		distance_label.text = "%d m" % int(distance)
+
+
+## Turn-by-turn line under the stop name (see RouteGuide.guidance()).
+func set_guidance(g: Dictionary) -> void:
+	var turn: int = int(g.get("turn", RouteGuide.Turn.STRAIGHT))
+	var dist := int(round(float(g.get("distance", 0.0))))
+	turn_arrow.turn = turn
+	var color := Color.WHITE
+	match turn:
+		RouteGuide.Turn.LEFT:
+			distance_label.text = tr("GUIDE_TURN_LEFT") % dist
+		RouteGuide.Turn.RIGHT:
+			distance_label.text = tr("GUIDE_TURN_RIGHT") % dist
+		RouteGuide.Turn.STOP:
+			distance_label.text = tr("GUIDE_STOP") % dist if dist >= 3 else tr("GUIDE_AT_STOP")
+			color = Color(1.0, 0.92, 0.6)
+		RouteGuide.Turn.TERMINAL:
+			distance_label.text = tr("GUIDE_TERMINAL") % dist
+			color = Color(0.7, 1.0, 0.8)
+		RouteGuide.Turn.OFF_ROUTE:
+			distance_label.text = tr("GUIDE_OFF_ROUTE")
+			color = Color(1.0, 0.65, 0.4)
+		_:
+			distance_label.text = tr("GUIDE_STRAIGHT") % dist
+	distance_label.add_theme_color_override("font_color", color)
 
 
 func show_message(text: String, duration: float = 2.0, color: Color = Color.WHITE) -> void:

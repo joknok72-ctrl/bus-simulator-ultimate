@@ -9,6 +9,8 @@ const MISSED_STOP_DISTANCE := 30.0
 const STOP_BONUS := 100
 const PASSENGER_POINTS := 50
 const MISSED_PENALTY := 200
+const PERFECT_STOP_BONUS := 50
+const PERFECT_STOP_TOLERANCE := 2.0    # metres along the lane from the stop marker
 const BOARDING_INTERVAL := 0.6
 const CAMERA_NAMES: Array[String] = ["CAM_CHASE", "CAM_DRIVER", "CAM_TOP"]
 ## Guide arrow placement: above the bus for the outside views; in the driver view it sits
@@ -40,6 +42,10 @@ var stops_served := 0
 var current_stop := 0
 var total_passengers := 0
 var speed_limit := 50
+var perfect_stops := 0
+## Turn-by-turn guidance along the route polyline (next corner / stop, off-route detection).
+var guide := RouteGuide.new()
+var guidance: Dictionary = {}
 
 var _boarding_steps: Array[Callable] = []
 var _boarding_timer := 0.0
@@ -47,8 +53,11 @@ var _hint_timer := 0.0
 var _speeding_timer := 0.0
 var _speeding_msg_timer := 0.0
 var _guide_arrow: Node3D
+var _arrow_mat: StandardMaterial3D
 var _arrow_bob := 0.0
 var _finish_started := false
+var _was_off_route := false
+var _perfect_awarded: Dictionary = {}   # stop index -> true (bonus paid once per stop)
 
 
 func _ready() -> void:
@@ -89,9 +98,12 @@ func _ready() -> void:
 	results.menu_requested.connect(_to_menu)
 	results.next_requested.connect(_next_route)
 	_build_guide_arrow()
+	guide.setup(world.route_points)
 	_update_stop_targets()
+	_update_guidance()
 	hud.set_stats(time_left, score, onboard, delivered, total_passengers, 0.0)
 	hud.set_next_stop(current_stop, bus.global_position.distance_to(_current_target_position()), false, world.stops.size())
+	hud.set_guidance(guidance)
 	_run_countdown()
 
 
@@ -123,6 +135,7 @@ func _build_guide_arrow() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.25, 0.9, 0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_arrow_mat = mat
 	var shaft := BoxMesh.new()
 	shaft.size = Vector3(0.5, 0.25, 1.6)
 	var shaft_mi := MeshInstance3D.new()
@@ -141,16 +154,26 @@ func _build_guide_arrow() -> void:
 	_guide_arrow.add_child(head_mi)
 
 
-func _update_guide_arrow(delta: float, target: Vector3) -> void:
-	if _guide_arrow == null or bus == null:
+## Recomputes where the route guidance points (next corner, the stop itself, or back to the
+## route when the bus has left it).
+func _update_guidance() -> void:
+	guidance = guide.guidance(bus.global_position, _current_target_position(), current_stop >= world.stops.size())
+
+
+func _update_guide_arrow(delta: float) -> void:
+	if _guide_arrow == null or bus == null or guidance.is_empty():
 		return
 	_arrow_bob += delta * 3.0
+	var turn: int = int(guidance.turn)
+	var target: Vector3 = guidance.guide_point
+	var off_route := turn == RouteGuide.Turn.OFF_ROUTE
+	var at_target := turn == RouteGuide.Turn.STOP or turn == RouteGuide.Turn.TERMINAL
 	var dist := Vector2(target.x - bus.global_position.x, target.z - bus.global_position.z).length()
 	var driver := camera_rig.is_driver_view()
 	var pos: Vector3
 	if driver:
 		# On the road ahead, where the driver is looking. It slides closer (and shrinks) as the
-		# stop comes near so it never sits beyond the stop pointing back at the bus.
+		# corner or stop comes near so it never sits beyond it pointing back at the bus.
 		var ahead := clampf(dist - 4.0, ARROW_AHEAD_MIN, ARROW_AHEAD_DISTANCE)
 		var far_t := (ahead - ARROW_AHEAD_MIN) / (ARROW_AHEAD_DISTANCE - ARROW_AHEAD_MIN)
 		pos = bus.global_position - bus.global_transform.basis.z * ahead + Vector3(0, ARROW_AHEAD_HEIGHT + sin(_arrow_bob) * 0.08, 0)
@@ -164,10 +187,11 @@ func _update_guide_arrow(delta: float, target: Vector3) -> void:
 		_guide_arrow.look_at(flat_target, Vector3.UP)
 		# Nose up: every camera looks at the arrow from above and behind.
 		_guide_arrow.rotate_object_local(Vector3.RIGHT, ARROW_TILT)
+	_arrow_mat.albedo_color = Color(1.0, 0.55, 0.25) if off_route else Color(0.25, 0.9, 0.35)
 	# Hidden once the bus is at the stop (boarding) and, in the cockpit, when the stop is so close
 	# that the painted stop zone and the shelter are already in view.
 	var at_stop := state == State.BOARDING or state == State.WAIT_CLOSE
-	_guide_arrow.visible = state != State.FINISHED and not at_stop and not (driver and dist < ARROW_HIDE_DISTANCE)
+	_guide_arrow.visible = state != State.FINISHED and not at_stop and not (driver and at_target and dist < ARROW_HIDE_DISTANCE)
 
 
 func _on_camera_button() -> void:
@@ -190,7 +214,8 @@ func _physics_process(delta: float) -> void:
 		bus.input_throttle = tc.throttle
 		bus.input_brake = tc.brake
 	# The arrow follows the (physics-driven) bus, so move it on the physics tick too.
-	_update_guide_arrow(delta, _current_target_position())
+	_update_guidance()
+	_update_guide_arrow(delta)
 
 
 func _process(delta: float) -> void:
@@ -208,6 +233,7 @@ func _process(delta: float) -> void:
 		_finish(false, "RESULT_FAILED_TIME")
 		return
 	_check_speeding(delta)
+	_check_off_route()
 	match state:
 		State.DRIVING:
 			_process_driving()
@@ -218,7 +244,17 @@ func _process(delta: float) -> void:
 				_complete_stop()
 	var dist := bus.global_position.distance_to(target)
 	hud.set_next_stop(current_stop, dist, current_stop >= world.stops.size(), world.stops.size())
+	hud.set_guidance(guidance)
+	hud.minimap.progress_seg = int(guidance.get("seg", -1))
 	hud.set_stats(time_left, score, onboard, delivered, total_passengers, bus.damage)
+
+
+func _check_off_route() -> void:
+	var off := guide.off_route
+	if off and not _was_off_route:
+		hud.show_message(tr("MSG_OFF_ROUTE"), 2.5, Color(1.0, 0.65, 0.4))
+		AudioSynth.play("fail", -10.0, 1.3)
+	_was_off_route = off
 
 
 func _current_target_position() -> Vector3:
@@ -266,7 +302,23 @@ func _begin_boarding(stop: BusStop) -> void:
 		_boarding_steps.append(func() -> void: _board_one(stop, p))
 	_boarding_steps.append(func() -> void: pass)   # small pause after the last passenger
 	_boarding_timer = 0.3
-	hud.show_message(tr("MSG_BOARDING"), 1.2, Color(0.8, 0.9, 1.0))
+	if _is_perfect_stop(stop) and not _perfect_awarded.has(current_stop):
+		_perfect_awarded[current_stop] = true
+		perfect_stops += 1
+		score += PERFECT_STOP_BONUS
+		hud.show_message(tr("MSG_PERFECT_STOP") % PERFECT_STOP_BONUS, 1.6, Color(0.6, 1.0, 0.7))
+		AudioSynth.play("ding", -4.0, 1.25)
+		GameState.vibrate(40)
+	else:
+		hud.show_message(tr("MSG_BOARDING"), 1.2, Color(0.8, 0.9, 1.0))
+
+
+## A perfect stop: centred on the stop marker along the lane, next to the kerb and parallel
+## to it. Rewards precise driving instead of just "somewhere inside the yellow zone".
+func _is_perfect_stop(stop: BusStop) -> bool:
+	var local := stop.to_local(bus.global_position)
+	var aligned := (-bus.global_transform.basis.z).dot(-stop.global_transform.basis.z) > 0.985
+	return absf(local.z) <= PERFECT_STOP_TOLERANCE and absf(local.x) <= 1.0 and aligned
 
 
 func _process_boarding(delta: float) -> void:
@@ -420,6 +472,7 @@ func _finish(success: bool, title_key: String) -> void:
 		"time_bonus": time_bonus, "total": total, "stars": stars, "coins": coins,
 		"delivered": delivered, "total_passengers": total_passengers, "stops_served": stops_served,
 		"stops_total": world.stops.size(), "collisions": collisions, "new_best": new_best,
+		"perfect_stops": perfect_stops,
 	}
 	await get_tree().create_timer(1.8).timeout
 	if is_inside_tree():

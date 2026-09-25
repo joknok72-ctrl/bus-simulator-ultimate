@@ -17,6 +17,7 @@ var _zone: MeshInstance3D
 var _zone_mat: StandardMaterial3D
 var _pulse := 0.0
 var _active := false
+var _props := MeshMerger.new()   # shelter / terminal geometry, baked into one mesh in setup()
 
 
 func setup(idx: int, world_pos: Vector3, travel_dir: Vector3, passenger_count: int, night: bool, terminal: bool = false) -> void:
@@ -30,6 +31,8 @@ func setup(idx: int, world_pos: Vector3, travel_dir: Vector3, passenger_count: i
 		_build_terminal(night)
 	else:
 		_build_shelter(night)
+	_props.instance(self, "Props")
+	if not terminal:
 		_spawn_passengers(passenger_count)
 
 
@@ -48,11 +51,11 @@ func _build_zone() -> void:
 	_zone.material_override = _zone_mat
 	_zone.position = Vector3(0, 0.04, 0)
 	add_child(_zone)
-	# Dashed white border around the zone.
+	# White border around the zone.
 	var border_mat := MeshFactory.mat(Color(0.95, 0.95, 0.95), 0.9)
 	for side in [-1.0, 1.0]:
-		MeshFactory.box(self, Vector3(0.18, 0.02, ZONE_HALF_LENGTH * 2.0), Vector3(side * ZONE_HALF_WIDTH, 0.03, 0), border_mat)
-		MeshFactory.box(self, Vector3(ZONE_HALF_WIDTH * 2.0, 0.02, 0.18), Vector3(0, 0.03, side * ZONE_HALF_LENGTH), border_mat)
+		_props.add_box(Vector3(0.18, 0.02, ZONE_HALF_LENGTH * 2.0), Vector3(side * ZONE_HALF_WIDTH, 0.03, 0), border_mat)
+		_props.add_box(Vector3(ZONE_HALF_WIDTH * 2.0, 0.02, 0.18), Vector3(0, 0.03, side * ZONE_HALF_LENGTH), border_mat)
 
 
 func _build_shelter(night: bool) -> void:
@@ -62,20 +65,20 @@ func _build_shelter(night: bool) -> void:
 	var x := CURB_X + 1.6
 	# poles
 	for z in [-2.2, 2.2]:
-		MeshFactory.cylinder(self, 0.06, 2.6, Vector3(x + 0.9, 1.3, z), metal)
-		MeshFactory.cylinder(self, 0.06, 2.6, Vector3(x - 0.9, 1.3, z), metal)
+		_props.add_cylinder(0.06, 2.6, Vector3(x + 0.9, 1.3, z), metal, Vector3.ZERO, 8)
+		_props.add_cylinder(0.06, 2.6, Vector3(x - 0.9, 1.3, z), metal, Vector3.ZERO, 8)
 	# roof
-	MeshFactory.box(self, Vector3(2.4, 0.12, 5.2), Vector3(x, 2.66, 0), roof_mat)
+	_props.add_box(Vector3(2.4, 0.12, 5.2), Vector3(x, 2.66, 0), roof_mat)
 	# back glass panel
-	MeshFactory.box(self, Vector3(0.06, 2.2, 4.6), Vector3(x + 0.95, 1.4, 0), glass)
+	_props.add_box(Vector3(0.06, 2.2, 4.6), Vector3(x + 0.95, 1.4, 0), glass)
 	# bench
-	MeshFactory.box(self, Vector3(0.5, 0.08, 3.2), Vector3(x + 0.5, 0.5, 0), MeshFactory.mat(Color(0.55, 0.38, 0.2), 0.8))
-	MeshFactory.box(self, Vector3(0.08, 0.5, 3.0), Vector3(x + 0.72, 0.25, 0), metal)
+	_props.add_box(Vector3(0.5, 0.08, 3.2), Vector3(x + 0.5, 0.5, 0), MeshFactory.mat(Color(0.55, 0.38, 0.2), 0.8))
+	_props.add_box(Vector3(0.08, 0.5, 3.0), Vector3(x + 0.72, 0.25, 0), metal)
 	# sign pole with the stop number
 	var sign_x := CURB_X + 0.5
-	MeshFactory.cylinder(self, 0.05, 3.0, Vector3(sign_x, 1.5, -3.6), metal)
+	_props.add_cylinder(0.05, 3.0, Vector3(sign_x, 1.5, -3.6), metal, Vector3.ZERO, 8)
 	var sign_mat := MeshFactory.mat(Color(0.98, 0.8, 0.15), 0.5, 0.0, Color(1.0, 0.8, 0.2), 1.2 if night else 0.0)
-	MeshFactory.box(self, Vector3(0.06, 0.7, 0.9), Vector3(sign_x, 2.85, -3.6), sign_mat)
+	_props.add_box(Vector3(0.06, 0.7, 0.9), Vector3(sign_x, 2.85, -3.6), sign_mat)
 	var label := Label3D.new()
 	label.text = "BUS %d" % (index + 1)
 	label.font_size = 64
@@ -88,17 +91,17 @@ func _build_shelter(night: bool) -> void:
 	add_child(label)
 	# Light under the roof at night.
 	if night:
-		MeshFactory.box(self, Vector3(1.6, 0.06, 3.0), Vector3(x, 2.58, 0), MeshFactory.mat(Color(1, 1, 0.9), 0.3, 0.0, Color(1.0, 0.95, 0.8), 2.5))
+		_props.add_box(Vector3(1.6, 0.06, 3.0), Vector3(x, 2.58, 0), MeshFactory.mat(Color(1, 1, 0.9), 0.3, 0.0, Color(1.0, 0.95, 0.8), 2.5))
 
 
 func _build_terminal(night: bool) -> void:
 	var metal := MeshFactory.mat(Color(0.25, 0.27, 0.3), 0.4, 0.7)
 	var x := CURB_X + 2.2
 	# Arch over the sidewalk with a TERMINAL sign.
-	MeshFactory.cylinder(self, 0.12, 5.0, Vector3(x - 1.5, 2.5, 0), metal)
-	MeshFactory.cylinder(self, 0.12, 5.0, Vector3(x + 1.5, 2.5, 0), metal)
+	_props.add_cylinder(0.12, 5.0, Vector3(x - 1.5, 2.5, 0), metal, Vector3.ZERO, 10)
+	_props.add_cylinder(0.12, 5.0, Vector3(x + 1.5, 2.5, 0), metal, Vector3.ZERO, 10)
 	var sign_mat := MeshFactory.mat(Color(0.15, 0.65, 0.35), 0.5, 0.0, Color(0.2, 0.9, 0.4), 1.5 if night else 0.0)
-	MeshFactory.box(self, Vector3(3.6, 1.0, 0.2), Vector3(x, 5.2, 0), sign_mat)
+	_props.add_box(Vector3(3.6, 1.0, 0.2), Vector3(x, 5.2, 0), sign_mat)
 	var label := Label3D.new()
 	label.text = "TERMINAL"
 	label.font_size = 72
@@ -111,8 +114,8 @@ func _build_terminal(night: bool) -> void:
 	add_child(label)
 	# Flags on the poles.
 	var flag_mat := MeshFactory.mat(Color(0.95, 0.95, 0.95), 0.9)
-	MeshFactory.box(self, Vector3(0.9, 0.5, 0.04), Vector3(x - 1.05, 5.9, 0), flag_mat)
-	MeshFactory.box(self, Vector3(0.9, 0.5, 0.04), Vector3(x + 1.95, 5.9, 0), flag_mat)
+	_props.add_box(Vector3(0.9, 0.5, 0.04), Vector3(x - 1.05, 5.9, 0), flag_mat)
+	_props.add_box(Vector3(0.9, 0.5, 0.04), Vector3(x + 1.95, 5.9, 0), flag_mat)
 	_zone_mat.albedo_color = Color(0.3, 0.9, 0.5, 0.45)
 	_zone_mat.emission = Color(0.3, 0.9, 0.5)
 

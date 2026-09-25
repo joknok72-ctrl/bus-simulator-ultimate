@@ -30,33 +30,25 @@ func _build() -> void:
 	var shirt := SHIRT_COLORS[randi() % SHIRT_COLORS.size()]
 	var skin := SKIN_COLORS[randi() % SKIN_COLORS.size()]
 	var pants := Color(0.15, 0.17, 0.25) if randf() < 0.6 else Color(0.35, 0.3, 0.28)
+	# One mesh, one shared vertex-colour material: a passenger costs a single draw call.
+	var m := MeshMerger.new()
+	var mat := MeshFactory.vertex_color_mat()
 	# legs
-	MeshFactory.box(_body, Vector3(0.36, 0.75, 0.3), Vector3(0, 0.375, 0), MeshFactory.mat(pants))
+	m.add_box(Vector3(0.36, 0.75, 0.3), Vector3(0, 0.375, 0), mat, Basis.IDENTITY, pants)
 	# torso (capsule)
 	var torso := CapsuleMesh.new()
 	torso.radius = 0.24
 	torso.height = 0.85
 	torso.radial_segments = 8
 	torso.rings = 4
-	var torso_mi := MeshInstance3D.new()
-	torso_mi.mesh = torso
-	torso_mi.material_override = MeshFactory.mat(shirt)
-	torso_mi.position = Vector3(0, 1.15, 0)
-	_body.add_child(torso_mi)
+	m.add(torso, Transform3D(Basis.IDENTITY, Vector3(0, 1.15, 0)), mat, shirt)
 	# head
-	MeshFactory.sphere(_body, 0.17, Vector3(0, 1.72, 0), MeshFactory.mat(skin), 10)
+	m.add_sphere(0.17, Vector3(0, 1.72, 0), mat, 10, skin)
 	# hair / cap
 	if randf() < 0.7:
-		var hair := SphereMesh.new()
-		hair.radius = 0.18
-		hair.height = 0.2
-		hair.radial_segments = 10
-		hair.rings = 4
-		var hair_mi := MeshInstance3D.new()
-		hair_mi.mesh = hair
-		hair_mi.material_override = MeshFactory.mat(Color(0.12, 0.09, 0.07) if randf() < 0.7 else Color(0.5, 0.35, 0.2))
-		hair_mi.position = Vector3(0, 1.8, 0)
-		_body.add_child(hair_mi)
+		var hair_color := Color(0.12, 0.09, 0.07) if randf() < 0.7 else Color(0.5, 0.35, 0.2)
+		m.add_sphere(0.18, Vector3(0, 1.8, 0), mat, 10, hair_color, 0.2)
+	m.instance(_body, "Body")
 	scale = Vector3.ONE * randf_range(0.9, 1.05)
 
 

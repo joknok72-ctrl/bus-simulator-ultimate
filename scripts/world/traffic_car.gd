@@ -13,7 +13,6 @@ var cruise_speed := 10.0
 var speed := 0.0
 var waypoints: PackedVector3Array = PackedVector3Array()
 var wp_index := 0
-var wheels: Array[Node3D] = []
 var blocked_timer := 0.0
 
 static var all_cars: Array[TrafficCar] = []
@@ -55,28 +54,29 @@ func setup(loop_points: PackedVector3Array, start_index: int, night: bool, is_tr
 
 
 func _build_visual(night: bool, is_truck: bool) -> void:
+	# The whole car (body, glass, wheels, lights) is baked into one mesh: 4-5 draw calls
+	# instead of ~14. Plain cylinder wheels look identical whether they spin or not.
 	var color := CAR_COLORS[randi() % CAR_COLORS.size()]
 	var paint := MeshFactory.mat(color, 0.35, 0.4)
 	var glass := MeshFactory.glass_mat(Color(0.2, 0.3, 0.4, 0.8))
 	var dark := MeshFactory.mat(Color(0.08, 0.08, 0.09), 0.9)
+	var m := MeshMerger.new()
 	if is_truck:
-		MeshFactory.box(self, Vector3(2.2, 1.3, 2.2), Vector3(0, 1.05, -2.2), paint)
-		MeshFactory.box(self, Vector3(2.1, 0.9, 1.0), Vector3(0, 2.1, -2.5), glass)
-		MeshFactory.box(self, Vector3(2.3, 2.3, 4.4), Vector3(0, 1.55, 1.1), MeshFactory.mat(color.lightened(0.3), 0.7))
-		MeshFactory.box(self, Vector3(2.3, 0.4, 6.8), Vector3(0, 0.55, 0), dark)
+		m.add_box(Vector3(2.2, 1.3, 2.2), Vector3(0, 1.05, -2.2), paint)
+		m.add_box(Vector3(2.3, 2.3, 4.4), Vector3(0, 1.55, 1.1), MeshFactory.mat(color.lightened(0.3), 0.7))
+		m.add_box(Vector3(2.3, 0.4, 6.8), Vector3(0, 0.55, 0), dark)
 		for z in [-2.2, 0.6, 1.9]:
 			for x in [-1.05, 1.05]:
-				var w := MeshFactory.cylinder(self, 0.5, 0.35, Vector3(x, 0.5, z), dark, Vector3(0, 0, PI * 0.5), 10)
-				wheels.append(w)
+				m.add_cylinder(0.5, 0.35, Vector3(x, 0.5, z), dark, Vector3(0, 0, PI * 0.5), 10)
+		m.add_box(Vector3(2.1, 0.9, 1.0), Vector3(0, 2.1, -2.5), glass)
 	else:
-		MeshFactory.box(self, Vector3(1.8, 0.55, 4.3), Vector3(0, 0.62, 0), paint)
-		MeshFactory.box(self, Vector3(1.6, 0.55, 2.2), Vector3(0, 1.15, 0.15), paint)
-		MeshFactory.box(self, Vector3(1.62, 0.5, 2.0), Vector3(0, 1.17, 0.15), glass)
-		MeshFactory.box(self, Vector3(1.85, 0.2, 4.4), Vector3(0, 0.3, 0), dark)
+		m.add_box(Vector3(1.8, 0.55, 4.3), Vector3(0, 0.62, 0), paint)
+		m.add_box(Vector3(1.6, 0.55, 2.2), Vector3(0, 1.15, 0.15), paint)
+		m.add_box(Vector3(1.85, 0.2, 4.4), Vector3(0, 0.3, 0), dark)
 		for z in [-1.4, 1.4]:
 			for x in [-0.85, 0.85]:
-				var w := MeshFactory.cylinder(self, 0.34, 0.25, Vector3(x, 0.34, z), dark, Vector3(0, 0, PI * 0.5), 10)
-				wheels.append(w)
+				m.add_cylinder(0.34, 0.25, Vector3(x, 0.34, z), dark, Vector3(0, 0, PI * 0.5), 10)
+		m.add_box(Vector3(1.62, 0.5, 2.0), Vector3(0, 1.17, 0.15), glass)
 	# Lights
 	var head_mat := MeshFactory.mat(Color(1, 1, 0.9), 0.2, 0.0, Color(1.0, 0.95, 0.8), 3.0 if night else 0.0)
 	var tail_mat := MeshFactory.mat(Color(0.8, 0.1, 0.1), 0.3, 0.0, Color(1.0, 0.1, 0.1), 2.0 if night else 0.0)
@@ -84,8 +84,9 @@ func _build_visual(night: bool, is_truck: bool) -> void:
 	var back_z := 3.5 if is_truck else 2.16
 	var light_y := 1.0 if is_truck else 0.65
 	for x in [-0.6, 0.6]:
-		MeshFactory.box(self, Vector3(0.35, 0.18, 0.06), Vector3(x, light_y, front_z), head_mat)
-		MeshFactory.box(self, Vector3(0.35, 0.16, 0.06), Vector3(x, light_y, back_z), tail_mat)
+		m.add_box(Vector3(0.35, 0.18, 0.06), Vector3(x, light_y, front_z), head_mat)
+		m.add_box(Vector3(0.35, 0.16, 0.06), Vector3(x, light_y, back_z), tail_mat)
+	m.instance(self, "Body")
 
 
 func _face(target: Vector3) -> void:
@@ -126,16 +127,20 @@ func _physics_process(delta: float) -> void:
 		if new_forward.length_squared() > 0.001:
 			look_at(global_position + new_forward, Vector3.UP)
 	global_position += -global_transform.basis.z * speed * delta
-	for w in wheels:
-		w.rotate_object_local(Vector3(0, 1, 0), -speed * delta / 0.34)
 
 
 func _obstacle_ahead() -> bool:
 	var forward := -global_transform.basis.z
 	var check_len := 6.0 + speed * 1.1
 	if bus_ref != null and is_instance_valid(bus_ref):
-		if _in_front(bus_ref.global_position, forward, check_len + 4.0, 3.2):
-			return true
+		# The bus is 11 m long: test its front, middle and rear, not just the centre, so a car
+		# approaching from the side at an intersection also stops instead of T-boning the bus,
+		# which felt unfair to the player.
+		# (3.0 m half-width: a car in the neighbouring lane, 3.5 m away, still passes a parked bus.)
+		var bus_fwd := -bus_ref.global_transform.basis.z
+		for offset in [-4.5, 0.0, 4.5]:
+			if _in_front(bus_ref.global_position + bus_fwd * offset, forward, check_len + 4.0, 3.0):
+				return true
 	for other in all_cars:
 		if other == self or not is_instance_valid(other):
 			continue

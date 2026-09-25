@@ -6,6 +6,7 @@ var route_points: PackedVector3Array = PackedVector3Array()
 var stops: Array = []          # Array[BusStop]
 var terminal: BusStop = null
 var current_stop_index := 0
+var progress_seg := -1        # route segment the bus is on (RouteGuide); earlier segments are drawn dimmed
 var bus: Node3D = null
 var cars: Array = []
 var _pulse := 0.0
@@ -46,12 +47,17 @@ func _draw() -> void:
 		var c := _map(CityLayout.node_pos(Vector2i(0, i)))
 		var d := _map(CityLayout.node_pos(Vector2i(n - 1, i)))
 		draw_line(c, d, road_col, road_w)
-	# Route
+	# Route: the part already driven is dimmed, the rest stays bright yellow.
 	if route_points.size() >= 2:
 		var pts := PackedVector2Array()
 		for p in route_points:
 			pts.append(_map(p))
-		draw_polyline(pts, Color(1.0, 0.85, 0.2, 0.95), maxf(2.0, road_w * 0.5), true)
+		var split := clampi(progress_seg, 0, pts.size() - 1)
+		var line_w := maxf(2.0, road_w * 0.5)
+		if split >= 1:
+			draw_polyline(pts.slice(0, split + 1), Color(0.75, 0.7, 0.55, 0.55), line_w, true)
+		if split <= pts.size() - 2:
+			draw_polyline(pts.slice(split), Color(1.0, 0.85, 0.2, 0.95), line_w, true)
 	# Stops
 	for i in stops.size():
 		var stop: BusStop = stops[i]

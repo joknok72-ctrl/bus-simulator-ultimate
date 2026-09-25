@@ -25,6 +25,10 @@ var throttle := 0.0
 var brake := 0.0
 var control_mode: int = GameState.ControlMode.WHEEL
 
+## Button steering rate (per second) and tilt divisor (g) per sensitivity setting.
+const BUTTON_RATES: Array[float] = [2.2, 3.0, 4.2]
+const TILT_DIVISORS: Array[float] = [6.0, 4.5, 3.3]
+
 var _touches: Dictionary = {}     # touch index -> Control
 var _tilt_steer := 0.0
 var _button_steer := 0.0
@@ -132,11 +136,12 @@ func _process(delta: float) -> void:
 			target -= 1.0
 		if right_button.pressed:
 			target += 1.0
-		_button_steer = move_toward(_button_steer, target, delta * (3.0 if target != 0.0 else 5.0))
+		var rate: float = BUTTON_RATES[GameState.steer_sensitivity()]
+		_button_steer = move_toward(_button_steer, target, delta * (rate if target != 0.0 else 5.0))
 		touch_steer = _button_steer
 	else:
 		var acc := Input.get_accelerometer()
-		var raw := clampf(-acc.x / 4.5, -1.0, 1.0)
+		var raw := clampf(-acc.x / TILT_DIVISORS[GameState.steer_sensitivity()], -1.0, 1.0)
 		if GameState.settings.invert_tilt:
 			raw = -raw
 		if absf(raw) < 0.06:

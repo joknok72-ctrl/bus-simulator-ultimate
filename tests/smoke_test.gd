@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_autoloads()
 	await _test_main_menu()
 	await _test_gameplay()
+	await _test_guidance()
 	await _test_camera()
 	await _test_all_routes()
 	print("== %d checks, %d failures ==" % [_checks, _failures])
@@ -83,7 +84,10 @@ func _test_main_menu() -> void:
 		await _frames(1)
 	_check(menu.get_node("UI/Root/PageRoutes/Cards").get_child_count() == 4, "4 route cards built")
 	_check(menu.get_node("UI/Root/PageGarage/Cards").get_child_count() == 6, "6 garage cards built")
-	_check(menu.get_node("UI/Root/PageSettings/Panel/Grid").get_child_count() == 16, "settings rows built")
+	_check(menu.get_node("UI/Root/PageSettings/Panel/Grid").get_child_count() == 18, "settings rows built (incl. steering sensitivity)")
+	_check(menu.get_node("UI/Root/PageHowTo/Panel/Lines").get_child_count() == 7, "7 how-to lines built")
+	var menu_meshes: int = menu.get_node("Turntable/Bus").find_children("*", "MeshInstance3D", true, false).size()
+	_check(menu_meshes < 20, "bus geometry is merged (%d mesh instances, was ~120)" % menu_meshes)
 	var about_count: int = menu.get_node("UI/Root/PageAbout/Panel/Scroll/Lines").get_child_count()
 	_check(about_count > 10, "about/licenses page built (%d lines)" % about_count)
 	menu.queue_free()
@@ -109,10 +113,37 @@ func _test_gameplay() -> void:
 	_check(world.cars.size() == 6, "6 traffic cars spawned")
 	_check(world.stops[0].waiting.size() == 4, "first stop has 4 waiting passengers")
 	var buildings := 0
+	var block_meshes := 0
 	for child in world.get_node("Blocks").get_children():
 		if child is StaticBody3D:
 			buildings += 1
+		elif child is MeshInstance3D:
+			block_meshes += 1
 	_check(buildings > 20, "buildings with collision generated (%d)" % buildings)
+	_check(block_meshes == 1 and world.get_node("Blocks/CityMesh").mesh.get_surface_count() >= 8, "city blocks baked into one mesh (%d surfaces)" % world.get_node("Blocks/CityMesh").mesh.get_surface_count())
+	var total_meshes: int = game.find_children("*", "MeshInstance3D", true, false).size()
+	_check(total_meshes < 90, "scene uses few mesh instances (%d, was ~590)" % total_meshes)
+	_check(world.get_node_or_null("Roads") != null and world.get_node("Roads").mesh.get_surface_count() == 2, "roads merged into one mesh")
+	# Turn-by-turn guidance at the spawn: the first stop is on the same road segment.
+	_check(game.guidance.turn == RouteGuide.Turn.STOP and game.guidance.distance > 20.0, "guidance at spawn: bus stop ahead (%.0f m)" % game.guidance.distance)
+	_check(game.hud.turn_arrow != null and game.hud.distance_label.text.contains("m"), "HUD guidance line shows the distance (\"%s\")" % game.hud.distance_label.text)
+	# Traffic yields to the whole bus, not just its centre point: a car aimed at the rear third.
+	var car = world.cars[0]
+	var saved_car_xf: Transform3D = car.global_transform
+	var rear_point: Vector3 = bus.global_position + bus.global_transform.basis.z * 4.5
+	var car_pos: Vector3 = rear_point + bus.global_transform.basis.x * 8.0
+	car.global_transform = Transform3D(Basis.IDENTITY, car_pos).looking_at(rear_point, Vector3.UP)
+	car.speed = 5.0
+	_check(car._obstacle_ahead(), "traffic car yields to the side of the bus")
+	car.global_transform = saved_car_xf
+	_check(bus.smoke != null and not bus.smoke.emitting, "no damage smoke on a fresh bus")
+	# Steering sensitivity changes the touch wheel lock angle and is persisted.
+	var wheel = game.hud.touch_controls.wheel
+	var normal_lock: float = wheel.max_angle
+	gs.set_setting("steer_sensitivity", 2)
+	_check(wheel.max_angle < normal_lock - 0.3, "high steering sensitivity needs less wheel travel (%.0f deg)" % rad_to_deg(wheel.max_angle))
+	gs.set_setting("steer_sensitivity", 1)
+	_check(absf(wheel.max_angle - normal_lock) < 0.001, "normal steering sensitivity restored")
 	# Skip the countdown and drive forward.
 	game.state = STATE_DRIVING
 	bus.engine_on = true
@@ -149,6 +180,8 @@ func _test_gameplay() -> void:
 	await _frames(5)
 	_check(game.current_stop == 1 and game.stops_served == 1, "stop 1 completed")
 	_check(game.score > 0, "score increased (%d)" % game.score)
+	_check(game.perfect_stops == 1 and game.score == 4 * 50 + 100 + 50, "perfect stop bonus awarded (%d)" % game.score)
+	_check(game.guidance.turn == RouteGuide.Turn.RIGHT or game.guidance.turn == RouteGuide.Turn.LEFT, "guidance now points to the next corner")
 	# Missed stop detection.
 	var stop2 = world.stops[1]
 	bus.global_transform = stop2.global_transform.translated(-stop2.global_transform.basis.z * 40.0)
@@ -158,6 +191,8 @@ func _test_gameplay() -> void:
 	var before_damage: float = bus.damage
 	game._on_bus_collided(5.0)
 	_check(game.collisions == 1 and bus.damage > before_damage, "collision applies damage and penalty")
+	bus.apply_damage(60.0)
+	_check(bus.smoke.emitting, "heavy damage starts the engine smoke")
 	# Terminal completion.
 	game.current_stop = world.stops.size()
 	game._update_stop_targets()
@@ -167,10 +202,57 @@ func _test_gameplay() -> void:
 	_check(game.state == STATE_FINISHED, "route finished at terminal")
 	_check(gs.last_result.get("success", false) == true, "result recorded as success")
 	_check(gs.get_route_stars("route_1") >= 1, "stars saved (%d)" % gs.get_route_stars("route_1"))
+	_check(int(gs.last_result.get("perfect_stops", -1)) == 1, "perfect stops recorded in the result")
 	await _frames(600)
 	_check(game.results.visible, "results panel shown")
 	game.queue_free()
 	await _frames(2)
+
+
+func _test_guidance() -> void:
+	print("-- route guidance")
+	var guide := RouteGuide.new()
+	var route := RouteData.get_route("route_1")
+	guide.setup(CityLayout.route_polyline(route.path))
+	_check(guide.points.size() == 5 and guide.total_length() > 400.0, "route_1 polyline (%d points, %.0f m)" % [guide.points.size(), guide.total_length()])
+	# Spawn -> first stop: same segment, straight to the stop.
+	var a: Vector2i = route.path[0]
+	var b: Vector2i = route.path[1]
+	var spawn := CityLayout.lane_point(a, b, 0.1)
+	var stop1 := CityLayout.lane_point(a, b, 0.4)
+	var g := guide.guidance(spawn, stop1, false)
+	_check(g.turn == RouteGuide.Turn.STOP and absf(g.distance - spawn.distance_to(stop1)) < 1.0, "same-segment target: stop ahead (%.0f m)" % g.distance)
+	# 10 m before the first corner, heading for stop 2 on the next segment: a right turn.
+	var near_corner := CityLayout.lane_point(a, b, 1.0 - 10.0 / CityLayout.BLOCK / 2.0)
+	var stop2 := CityLayout.lane_point(route.path[1], route.path[2], 0.5)
+	g = guide.guidance(near_corner, stop2, false)
+	_check(g.turn == RouteGuide.Turn.RIGHT, "next corner is a right turn")
+	# The lane polyline turns OUTER_LANE metres before the intersection centre.
+	_check(absf(g.distance - (10.0 - CityLayout.OUTER_LANE)) < 0.3, "distance to the corner is measured along the lane (%.1f m)" % g.distance)
+	_check(g.guide_point.distance_to(Vector3(guide.points[1].x, stop2.y, guide.points[1].z)) < 0.01, "arrow target is the corner, not the stop behind the buildings")
+	# Leaving the route (40 m sideways, into the next street) and coming back.
+	var sideways := spawn + CityLayout.right_of(CityLayout.seg_dir(a, b)) * -40.0
+	g = guide.guidance(sideways, stop1, false)
+	_check(g.turn == RouteGuide.Turn.OFF_ROUTE and guide.off_route, "off-route detected 40 m from the lane")
+	g = guide.guidance(spawn + Vector3(3.0, 0, 0), stop1, false)
+	_check(not guide.off_route and g.turn == RouteGuide.Turn.STOP, "back on the route")
+	# Terminal guidance on the last segment.
+	var last_a: Vector2i = route.path[route.path.size() - 2]
+	var last_b: Vector2i = route.path[route.path.size() - 1]
+	g = guide.guidance(CityLayout.lane_point(last_a, last_b, 0.3), CityLayout.lane_point(last_a, last_b, 0.9), true)
+	_check(g.turn == RouteGuide.Turn.TERMINAL, "terminal guidance on the last segment")
+	# MeshMerger: one surface per material, geometry preserved.
+	var merger := MeshMerger.new()
+	var m1 := MeshFactory.mat(Color.RED)
+	var m2 := MeshFactory.mat(Color.BLUE)
+	merger.add_box(Vector3.ONE, Vector3.ZERO, m1)
+	merger.add_box(Vector3.ONE, Vector3(3, 0, 0), m1)
+	merger.add_cylinder(0.5, 1.0, Vector3(0, 2, 0), m2, Vector3(0, 0, PI * 0.5), 8)
+	var mesh := merger.build()
+	_check(mesh.get_surface_count() == 2 and merger.vertex_count() > 48, "MeshMerger groups by material (%d surfaces, %d vertices)" % [mesh.get_surface_count(), merger.vertex_count()])
+	var aabb := mesh.get_aabb()
+	_check(aabb.position.x < -0.49 and aabb.end.x > 3.49 and aabb.end.y > 2.49, "merged geometry keeps its placement (%s)" % aabb)
+	await _frames(1)
 
 
 func _test_camera() -> void:

@@ -29,6 +29,7 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | ![Driver seat – cockpit view](docs/screenshots/10_game_driver_camera.png) | ![Driver seat – turning, wheel and body roll](docs/screenshots/13_game_driver_turning.png) |
 | ![Driving – chase camera](docs/screenshots/09_game_driving_chase.png) | ![Night route from the driver seat](docs/screenshots/12_game_night_route.png) |
 | ![Bus stop – boarding (chase)](docs/screenshots/11_game_bus_stop_boarding.png) | ![Bus stop – doors open (driver seat)](docs/screenshots/15_game_driver_at_stop.png) |
+| ![Turn-by-turn guidance before a corner](docs/screenshots/16_game_turn_guidance.png) | ![Engine smoke after heavy damage](docs/screenshots/17_game_damage_smoke.png) |
 | ![High view](docs/screenshots/14_game_top_camera.png) | ![Main menu (English)](docs/screenshots/01_menu_home_en.png) |
 | ![القائمة الرئيسية (عربي)](docs/screenshots/07_menu_home_ar.png) | ![Route selection](docs/screenshots/02_menu_routes.png) |
 
@@ -46,8 +47,9 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 5. [بناء APK لأندرويد | Build the Android APK](#بناء-apk-لأندرويد--build-the-android-apk)
 6. [التحقق والاختبارات | Validation & tests](#التحقق-والاختبارات--validation--tests)
 7. [بنية المشروع | Project structure](#بنية-المشروع--project-structure)
-8. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
-9. [الرخص | Licenses](#الرخص--licenses)
+8. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
+9. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
+10. [الرخص | Licenses](#الرخص--licenses)
 
 ---
 
@@ -63,19 +65,24 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | حفظ التقدّم محلياً (`user://save.cfg`) | Local save of progress (`user://save.cfg`) |
 | واجهة لمس كاملة: عجلة قيادة، أزرار، أو إمالة الهاتف (Accelerometer) | Full touch UI: steering wheel, buttons, or phone tilt (accelerometer) |
 | 3 كاميرات مع انتقال سلس بينها: تتبّع (تتجنّب المباني)، مقعد السائق (قمرة قيادة حقيقية: لوحة عدادات، مقود يدور مع التوجيه، أعمدة، مرايا، النظر داخل المنعطف، اهتزاز خفيف مع السرعة)، ومن الأعلى | 3 cameras with smooth blending: chase (keeps clear of buildings), driver seat (real cockpit: dashboard, steering wheel that turns with your input, pillars, mirrors, looks into turns, gentle speed vibration) and top-down |
-| خريطة صغيرة، عدّاد سرعة، مؤقّت، سهم توجيه إلى المحطة التالية | Minimap, speedometer, timer, guide arrow to the next stop |
+| إرشاد انعطاف بانعطاف: سطر في أعلى الشاشة (انعطف يميناً بعد 45 م / المحطة بعد 30 م) وسهم ثلاثي الأبعاد يتبع مسار الخط (المنعطف التالي) بدل الإشارة عبر المباني، وتحذير عند الخروج عن الخط، وتعتيم الجزء المقطوع من الخط على الخريطة | Turn-by-turn guidance: a HUD line (Turn right in 45 m / Bus stop in 30 m), a 3D arrow that follows the route (next corner) instead of pointing through buildings, an off-route warning, and the driven part of the route dimmed on the minimap |
+| مكافأة "توقّف مثالي" (+50) عند التوقف في منتصف منطقة المحطة بمحاذاة الرصيف؛ تُعدّ في شاشة النتائج | "Perfect stop" bonus (+50) for stopping centred in the zone and parallel to the kerb; counted on the results screen |
+| خريطة صغيرة، عدّاد سرعة، مؤقّت | Minimap, speedometer, timer |
+| أداء للهواتف: كل الهندسة الثابتة (الحافلة، المدينة، الطرق، المحطات، السيارات، الركاب) تُدمج في شبكات قليلة — نداءات الرسم أقل بنحو 60% (865 → 354 في الخط الأول) | Phone performance: all static geometry (bus, city, roads, stops, cars, passengers) is baked into a few meshes — about 60% fewer draw calls (865 → 354 on route 1) |
+| واجهة تحترم منطقة الأمان (فتحة الكاميرا/الحواف المستديرة) على أندرويد | HUD respects the display safe area (camera cutout / rounded corners) on Android |
+| دخان من المحرك عند تلف شديد | Engine smoke when the bus is badly damaged |
 | أصوات مولّدة برمجياً (محرك، بوق، أبواب، نقر) واهتزاز | Procedural audio (engine, horn, doors, clicks) and vibration |
 | عربي/إنجليزي مع اتجاه واجهة تلقائي (RTL) | Arabic/English with automatic RTL layout |
-| إعدادات: طريقة التحكم، الكاميرا، الجودة، الصوت، الاهتزاز، عكس الإمالة | Settings: control mode, camera, quality, sound, vibration, invert tilt |
+| إعدادات: طريقة التحكم، الكاميرا، الجودة، الصوت، الاهتزاز، حساسية التوجيه (منخفضة/عادية/عالية)، عكس الإمالة | Settings: control mode, camera, quality, sound, vibration, steering sensitivity (low/normal/high), invert tilt |
 | صفحة "حول اللعبة والرخص" تعرض رخصة Godot ومكوّناتها الخارجية وخط Cairo | "About & licenses" page showing the Godot license, its third-party components and the Cairo font notice |
 
 ---
 
 ## طريقة اللعب والتحكم | Gameplay & controls
 
-**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع السهم والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التصادم أو تجاوز السرعة أو تفويت محطة يُخفض النتيجة.
+**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). التصادم أو تجاوز السرعة أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت.
 
-**Goal:** start at the first stop, stop at every bus stop on the route (follow the arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Collisions, speeding and missed stops reduce your score.
+**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Collisions, speeding, missed stops and leaving the route cost score or time.
 
 | التحكم على الهاتف | Touch | لوحة المفاتيح (للتجربة على الحاسوب) | Keyboard (desktop testing) |
 |---|---|---|---|
@@ -140,18 +147,19 @@ Short version (Linux, after preparing JDK 17 and the Android SDK as in `docs/AND
 `sh tools/build_android.sh`. It fetches the official Android templates if missing, imports the project and exports
 `build/CityBusDriver-debug.apk`; pass `RELEASE_KEYSTORE`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASS` to also export a signed
 release APK. The Android preset (`export_presets.cfg`) targets **arm64-v8a**, package `com.khaled.citybusdriver`,
-version `1.1.0` (code 2), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
+version `1.2.0` (code 3), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
 
 ---
 
 ## التحقق والاختبارات | Validation & tests
 
-`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (59 فحصاً: الترجمات، صفحات القائمة، توليد المدينة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب، التصادمات، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع: موضع العين، خط الرؤية، الانتقال بين الكاميرات، تجنّب المباني)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
+`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (84 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
 
 `tools/validate.sh` runs, with Godot 4.7.2-stable: the import, the headless smoke test `tests/smoke_test.gd`
-(59 checks: translations, menu pages, city generation, all four routes, driving/braking, stops and boarding, collisions,
-route completion and scoring, and the camera rig: driver eye placement, clear line of sight, look-into-turn, view blending,
-chase camera obstacle avoidance) and a headless boot of the main scene.
+(84 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
+and the perfect-stop bonus, collisions and damage smoke, turn-by-turn guidance and off-route detection, traffic yielding
+to the bus, steering sensitivity, route completion and scoring, and the camera rig: driver eye placement, clear line of
+sight, look-into-turn, view blending, chase camera obstacle avoidance) and a headless boot of the main scene.
 
 ```sh
 GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
@@ -159,9 +167,11 @@ GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
 
 يشغّل GitHub Actions السكربت نفسه قبل تصدير الـ APK ويعرض النتيجة في ملخّص التشغيل. / GitHub Actions runs the same script before exporting the APK and shows the result in the run summary.
 
-آخر نتيجة مسجّلة (2026-09-25، Godot 4.7.2.stable.official) / last recorded result:
-`import errors = 0` · `59 checks, 0 failures – SMOKE TEST OK` · `boot exit 0` · debug APK exported and verified with
-`apksigner` — see [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and `build/logs/`.
+آخر نتيجة مسجّلة (2026-09-26، Godot 4.7.2.stable.official) / last recorded result:
+`import errors = 0` · `84 checks, 0 failures – SMOKE TEST OK` · `boot exit 0` — see [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and `build/logs/`.
+
+`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: 354 نداء رسم و46 MeshInstance3D (كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: 354 draw calls, 46 MeshInstance3D (865 / 587 before mesh merging):
+`xvfb-run -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 --resolution 1280x720 -s res://tools/perf_probe.gd`
 
 `tools/screenshot.gd` يلتقط لقطات حقيقية من اللعبة (يحتاج شاشة أو Xvfb):
 `xvfb-run -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 --resolution 1280x720 -s res://tools/screenshot.gd`
@@ -184,20 +194,44 @@ assets/i18n/strings.csv  كل نصوص الواجهة (en / ar)
 assets/ui/splash.png     شاشة الإقلاع
 scenes/                  bus.tscn, game.tscn, ui/main_menu.tscn, ui/hud.tscn
 scripts/autoload/        GameState (حفظ/تقدّم/إعدادات)، AudioSynth (أصوات مولّدة)
-scripts/vehicle/         bus.gd (فيزياء الحافلة والأبواب)، camera_rig.gd
-scripts/world/           توليد المدينة، الخطوط، المحطات، الركاب، المرور، مصنع الشبكات
-scripts/ui/              القائمة، HUD، عناصر اللمس، الخريطة، العدّاد، الإيقاف، النتائج
+scripts/vehicle/         bus.gd (فيزياء الحافلة والأبواب والدخان)، camera_rig.gd
+scripts/world/           توليد المدينة، الخطوط، المحطات، الركاب، المرور، مصنع الشبكات، mesh_merger.gd (دمج الهندسة)، route_guide.gd (الإرشاد)
+scripts/ui/              القائمة، HUD، عناصر اللمس، الخريطة، العدّاد، سهم الانعطاف، الإيقاف، النتائج
 scripts/game.gd          منطق المهمّة (المحطات، النقاط، المؤقّت، النهاية)
 shaders/                 مظهر المباني والطرق
 theme/main_theme.tres    سمة الواجهة
 tests/smoke_test.gd      اختبار دخان بلا واجهة رسومية
-tools/                   build_android.sh, validate.sh, fetch_android_templates.py, screenshot.gd
+tools/                   build_android.sh, validate.sh, fetch_android_templates.py, screenshot.gd, perf_probe.gd
 docs/ANDROID_BUILD.md    دليل تجهيز أندرويد والتصدير خطوة بخطوة
 docs/screenshots/        لقطات من اللعبة (المجلد docs/ مُتجاهَل من Godot عبر .gdignore فلا يدخل في الـ APK)
 build/                   مخرجات البناء: CityBusDriver-debug.apk, BUILD_INFO.txt, logs/ (مُتجاهَلة من Godot عبر .gdignore)
 ```
 
 ---
+
+## ما الجديد في 1.2.0 | What's new in 1.2.0
+
+**إرشاد انعطاف بانعطاف** — كان السهم الإرشادي يشير مباشرة إلى المحطة التالية "على خط مستقيم"، أي عبر المباني عند المنعطفات. الآن `RouteGuide` يُسقط موضع الحافلة على مسار الخط ويحدّد المنعطف التالي: سطر في أعلى الشاشة مع أيقونة (انعطف يساراً/يميناً بعد X م، تابع مستقيماً، المحطة بعد X م، المحطة النهائية) والسهم ثلاثي الأبعاد يشير إلى المنعطف ثم المحطة. عند الخروج عن الخط (> 22 م عن المسار) يظهر تحذير برتقالي ويشير السهم إلى نقطة العودة. الجزء المقطوع من الخط يُعتَّم على الخريطة الصغيرة.
+
+**أداء على الهواتف** — كل شيء في اللعبة مبني من مكعبات وأسطوانات، وكان كل جزء عقدة MeshInstance3D منفصلة (الحافلة وحدها ~120، والمدينة ~250) أي نداء رسم لكل قطعة. `MeshMerger` الجديد يدمج الأجزاء الثابتة في شبكة واحدة بسطح لكل مادة: الحافلة 8 عقد بدل ~120، المدينة/الطرق/الحدود 3 شبكات، كل سيارة وراكب ومحطة شبكة واحدة. النتيجة: 354 نداء رسم بدل 865 (الخط 1) و455 بدل 1166 (الخط 4)، و46 عقدة شبكة بدل 587 — بلا أي تغيير في المظهر.
+
+**عدالة المرور** — كانت السيارات تتوقف فقط إذا كان *مركز* الحافلة أمامها، فتصدم جانب الحافلة (11 م) عند التقاطعات. الآن تفحص مقدمة الحافلة ووسطها وخلفها.
+
+**توقّف مثالي** — +50 عند التوقف في منتصف منطقة المحطة بمحاذاة الرصيف (يُعدّ في شاشة النتائج).
+
+**تحكم وواجهة** — إعداد "حساسية التوجيه" (منخفضة 190° / عادية 150° / عالية 110° للعجلة، ومعدلات مقابلة للأزرار والإمالة)؛ صفحة الإعدادات صارت عمودين؛ الواجهة تبتعد عن فتحة الكاميرا (منطقة الأمان) على أندرويد؛ دخان من المحرك عند تلف > 35%؛ سطر "كيف تلعب" جديد.
+
+**Turn-by-turn guidance** — the guide arrow used to point straight at the next stop, i.e. through the buildings at every corner. `RouteGuide` now projects the bus onto the route polyline and finds the next corner: a HUD line with an icon (Turn left/right in X m, Straight ahead, Bus stop in X m, Terminal) and a 3D arrow that aims at the corner, then at the stop. Leaving the route (> 22 m from the lane) shows an orange warning and the arrow points back. The driven part of the route is dimmed on the minimap.
+
+**Phone performance** — everything in the game is built from boxes and cylinders, and every part used to be its own MeshInstance3D (the bus alone ~120, the city ~250), i.e. one draw call each. The new `MeshMerger` bakes static parts into one mesh with a surface per material: the bus is 8 nodes instead of ~120, city/roads/boundary are 3 meshes, every car, passenger and stop is one mesh. Result: 354 draw calls instead of 865 (route 1) and 455 instead of 1166 (route 4), 46 mesh nodes instead of 587 — with an identical look.
+
+**Fair traffic** — cars only yielded when the bus *centre* was in front of them and would T-bone the 11 m long bus at intersections. They now check the bus front, middle and rear.
+
+**Perfect stop** — +50 for stopping centred in the stop zone and parallel to the kerb (counted on the results screen).
+
+**Controls and UI** — a "steering sensitivity" setting (low 190° / normal 150° / high 110° of wheel travel, matching button and tilt rates); the settings page is now two columns; the HUD keeps clear of the camera cutout (display safe area) on Android; engine smoke above 35% damage; a new how-to line.
+
+Validation: `tests/smoke_test.gd` grew from 59 to 84 checks. Version 1.2.0 (Android `versionCode` 3).
 
 ## ما الجديد في 1.1.0 | What's new in 1.1.0
 

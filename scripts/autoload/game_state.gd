@@ -11,6 +11,7 @@ const SAVE_VERSION := 1
 
 enum ControlMode { WHEEL, BUTTONS, TILT }
 enum CameraMode { CHASE, DRIVER, TOP }
+enum SteerSensitivity { LOW, NORMAL, HIGH }
 
 ## Bus liveries that can be unlocked with coins in the garage.
 const BUS_COLORS: Array[Dictionary] = [
@@ -30,6 +31,7 @@ var settings: Dictionary = {
 	"quality": 1,
 	"camera": CameraMode.CHASE,
 	"invert_tilt": false,
+	"steer_sensitivity": SteerSensitivity.NORMAL,
 }
 
 var progress: Dictionary = {
@@ -113,6 +115,12 @@ func set_setting(key: String, value: Variant) -> void:
 
 func apply_language() -> void:
 	TranslationServer.set_locale(String(settings.language))
+
+
+## How far the touch wheel has to be turned (and how quickly buttons / tilt steer):
+## 0 = low (more precise), 1 = normal, 2 = high (less thumb travel).
+func steer_sensitivity() -> int:
+	return clampi(int(settings.get("steer_sensitivity", SteerSensitivity.NORMAL)), 0, 2)
 
 
 func is_arabic() -> bool:

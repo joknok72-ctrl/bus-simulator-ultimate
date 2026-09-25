@@ -281,6 +281,9 @@ func _build_settings() -> void:
 		GameState.set_setting("vibration", not GameState.settings.vibration))
 	_add_setting(tr("SET_QUALITY"), tr("QUALITY_HIGH") if int(GameState.settings.quality) >= 1 else tr("QUALITY_LOW"), func() -> void:
 		GameState.set_setting("quality", 0 if int(GameState.settings.quality) >= 1 else 1))
+	var sens_names := ["SENS_LOW", "SENS_NORMAL", "SENS_HIGH"]
+	_add_setting(tr("SET_STEER_SENS"), tr(sens_names[GameState.steer_sensitivity()]), func() -> void:
+		GameState.set_setting("steer_sensitivity", (GameState.steer_sensitivity() + 1) % 3))
 	_add_setting(tr("SET_INVERT_TILT"), tr("ON") if GameState.settings.invert_tilt else tr("OFF"), func() -> void:
 		GameState.set_setting("invert_tilt", not GameState.settings.invert_tilt))
 	_add_setting(tr("MENU_LANGUAGE"), "العربية" if GameState.is_arabic() else "English", func() -> void:
@@ -300,6 +303,7 @@ func _add_setting(title: String, value: String, on_pressed: Callable, danger: bo
 	var button := Button.new()
 	button.text = value if value != "" else title
 	button.custom_minimum_size = Vector2(300, 0)
+	button.clip_text = true
 	button.theme_type_variation = &"SecondaryButton"
 	if danger:
 		button.add_theme_color_override("font_color", Color(1.0, 0.6, 0.55))
@@ -315,18 +319,21 @@ func _add_setting(title: String, value: String, on_pressed: Callable, danger: bo
 func _build_howto() -> void:
 	for child in howto_lines.get_children():
 		child.queue_free()
-	for i in range(1, 7):
+	for i in range(1, 8):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
 		var num := Label.new()
 		num.text = "%d." % i
 		num.theme_type_variation = &"HudValue"
+		num.add_theme_font_size_override("font_size", 24)
 		num.custom_minimum_size = Vector2(40, 0)
 		row.add_child(num)
 		var text := Label.new()
 		text.text = tr("HOWTO_%d" % i)
+		text.add_theme_font_size_override("font_size", 20)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(text)
 		howto_lines.add_child(row)
 

@@ -50,6 +50,10 @@ CAM_CHASE,Chase,خلفية
 CAM_DRIVER,Driver seat,مقعد السائق
 CAM_TOP,High view,علوية
 SET_INVERT_TILT,Invert tilt,عكس الإمالة
+SET_STEER_SENS,Steering sensitivity,حساسية التوجيه
+SENS_LOW,Low (precise),منخفضة (دقيقة)
+SENS_NORMAL,Normal,عادية
+SENS_HIGH,High (quick),عالية (سريعة)
 SET_VIBRATION,Vibration,الاهتزاز
 SET_RESET,Reset progress,إعادة ضبط التقدم
 SET_RESET_CONFIRM,Progress reset!,تمت إعادة الضبط!
@@ -109,3 +113,14 @@ ABOUT_GAME,City Bus Driver v%s - an original bus driving game. All 3D models and
 ABOUT_ENGINE,Made with Godot Engine %s (MIT license):,صُنعت بمحرك Godot Engine %s (رخصة MIT):
 ABOUT_FONT,Cairo font by The Cairo Project Authors - SIL Open Font License 1.1.,خط Cairo من The Cairo Project Authors - رخصة SIL Open Font License 1.1.
 ABOUT_THIRD_PARTY,Third-party components included in Godot Engine:,المكوّنات الخارجية المضمّنة في محرك Godot:
+GUIDE_TURN_LEFT,Turn left in %d m,انعطف يساراً بعد %d م
+GUIDE_TURN_RIGHT,Turn right in %d m,انعطف يميناً بعد %d م
+GUIDE_STRAIGHT,Straight ahead - %d m,تابع مستقيماً - %d م
+GUIDE_STOP,Bus stop in %d m,المحطة بعد %d م
+GUIDE_AT_STOP,At the bus stop,عند المحطة
+GUIDE_TERMINAL,Terminal in %d m,المحطة النهائية بعد %d م
+GUIDE_OFF_ROUTE,Off route - turn around,خرجت عن الخط - عُد إلى المسار
+MSG_OFF_ROUTE,You left the route! Follow the arrow back,خرجت عن الخط! اتبع السهم للعودة
+MSG_PERFECT_STOP,Perfect stop! +%d,توقّف مثالي! +%d
+RESULT_PERFECT_STOPS,Perfect stops,التوقفات المثالية
+HOWTO_7,Follow the turn-by-turn arrow under the stop name. Stopping exactly in the middle of the zone earns a perfect-stop bonus.,اتبع سهم الانعطاف أسفل اسم المحطة. التوقف في منتصف المنطقة بدقة يمنحك مكافأة التوقف المثالي.

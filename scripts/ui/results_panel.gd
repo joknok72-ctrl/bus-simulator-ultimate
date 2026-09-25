@@ -36,6 +36,7 @@ func show_results(result: Dictionary) -> void:
 		child.queue_free()
 	_add_row(tr("RESULT_PASSENGERS"), "%d / %d" % [int(result.get("delivered", 0)), int(result.get("total_passengers", 0))])
 	_add_row(tr("RESULT_STOPS"), "%d / %d" % [int(result.get("stops_served", 0)), int(result.get("stops_total", 0))])
+	_add_row(tr("RESULT_PERFECT_STOPS"), "%d / %d" % [int(result.get("perfect_stops", 0)), int(result.get("stops_total", 0))])
 	_add_row(tr("RESULT_COLLISIONS"), str(int(result.get("collisions", 0))))
 	_add_row(tr("RESULT_TIME_BONUS"), "+%d" % int(result.get("time_bonus", 0)))
 	_add_row(tr("RESULT_TOTAL"), str(int(result.get("total", 0))), true)

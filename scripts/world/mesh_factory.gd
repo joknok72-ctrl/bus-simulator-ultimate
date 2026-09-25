@@ -24,6 +24,19 @@ static func mat(color: Color, roughness: float = 0.8, metallic: float = 0.0, emi
 	return m
 
 
+## Shared material whose albedo comes from the mesh vertex colours. Together with
+## MeshMerger this draws a prop made of many differently coloured parts in ONE draw call.
+static func vertex_color_mat(roughness: float = 0.8) -> StandardMaterial3D:
+	var key := "vcol|%.2f" % roughness
+	if _material_cache.has(key):
+		return _material_cache[key]
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.roughness = roughness
+	_material_cache[key] = m
+	return m
+
+
 ## Tinted glass. Lower metallic/higher roughness gives glass that is looked *through* at grazing
 ## angles (cabin windows) instead of mirroring the sky.
 static func glass_mat(color: Color = Color(0.25, 0.4, 0.55, 0.65), metallic: float = 0.3, roughness: float = 0.1) -> StandardMaterial3D:

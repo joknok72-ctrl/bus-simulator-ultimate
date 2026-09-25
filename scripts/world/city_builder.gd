@@ -4,6 +4,11 @@ extends Node3D
 ## buildings, parks, trees, street lamps, boundary walls, sky/lighting, bus stops,
 ## the terminal and ambient traffic. Deterministic per route (seeded RNG) so a
 ## route always looks the same.
+##
+## All static geometry is baked with MeshMerger into a few meshes (roads, city blocks,
+## boundary) with one surface per material - a handful of draw calls instead of ~300
+## separate MeshInstance3D nodes, which matters a lot on phone GPUs. Collision shapes
+## stay separate StaticBody3D nodes under "Blocks".
 
 const PALETTE: Array[Color] = [
 	Color(0.82, 0.76, 0.66), Color(0.66, 0.68, 0.72), Color(0.62, 0.32, 0.26),
@@ -24,6 +29,7 @@ var cars: Array[TrafficCar] = []
 var _rng := RandomNumberGenerator.new()
 var _building_mats: Array[ShaderMaterial] = []
 var _stop_positions: PackedVector3Array = PackedVector3Array()
+var _park_tree_xforms: Array[Transform3D] = []
 
 
 func build(route_def: Dictionary, quality: int) -> void:
@@ -140,32 +146,22 @@ func _build_roads() -> void:
 	seg_mat.set_shader_parameter("lane_width", CityLayout.LANE_WIDTH)
 	var seg_mesh := PlaneMesh.new()
 	seg_mesh.size = Vector2(CityLayout.ROAD_WIDTH, seg_len)
-	seg_mesh.material = seg_mat
 	var inter_mesh := PlaneMesh.new()
 	inter_mesh.size = Vector2(CityLayout.ROAD_WIDTH, CityLayout.ROAD_WIDTH)
-	inter_mesh.material = MeshFactory.mat(Color(0.16, 0.16, 0.17), 0.95)
-	var roads := Node3D.new()
-	roads.name = "Roads"
-	add_child(roads)
+	var inter_mat := MeshFactory.mat(Color(0.16, 0.16, 0.17), 0.95)
+	# All 25 intersections and 40 segments become one mesh with two surfaces.
+	var merger := MeshMerger.new()
 	var n := CityLayout.GRID_N
 	for j in n:
 		for i in n:
 			var p := CityLayout.node_pos(Vector2i(i, j))
-			var inter := MeshInstance3D.new()
-			inter.mesh = inter_mesh
-			inter.position = p + Vector3(0, 0.01, 0)
-			roads.add_child(inter)
+			merger.add(inter_mesh, Transform3D(Basis.IDENTITY, p + Vector3(0, 0.01, 0)), inter_mat)
 			if i < n - 1:
-				var mi := MeshInstance3D.new()
-				mi.mesh = seg_mesh
-				mi.position = p + Vector3(CityLayout.BLOCK * 0.5, 0.01, 0)
-				mi.rotation.y = PI * 0.5
-				roads.add_child(mi)
+				merger.add(seg_mesh, Transform3D(Basis(Vector3.UP, PI * 0.5), p + Vector3(CityLayout.BLOCK * 0.5, 0.01, 0)), seg_mat)
 			if j < n - 1:
-				var mi2 := MeshInstance3D.new()
-				mi2.mesh = seg_mesh
-				mi2.position = p + Vector3(0, 0.01, CityLayout.BLOCK * 0.5)
-				roads.add_child(mi2)
+				merger.add(seg_mesh, Transform3D(Basis.IDENTITY, p + Vector3(0, 0.01, CityLayout.BLOCK * 0.5)), seg_mat)
+	var roads := merger.instance(self, "Roads")
+	roads.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 # ---------------------------------------------------------------- stops
@@ -226,24 +222,31 @@ func _build_blocks() -> void:
 	var inner_half := cell_half - CityLayout.SIDEWALK
 	var sidewalk_mat := MeshFactory.mat(Color(0.62, 0.6, 0.58) if not night else Color(0.3, 0.3, 0.32), 0.95)
 	var park_mat := MeshFactory.mat(Color(0.26, 0.5, 0.22) if not night else Color(0.07, 0.13, 0.07), 1.0)
+	var slab_mat := MeshFactory.mat(Color(0.42, 0.4, 0.4) if not night else Color(0.16, 0.16, 0.18), 0.95)
+	var roof_detail_mat := MeshFactory.mat(Color(0.5, 0.5, 0.52), 0.9)
+	var antenna_mat := MeshFactory.mat(Color(0.8, 0.1, 0.1), 0.5, 0.0, Color(1, 0.1, 0.1), 3.0 if night else 0.0)
 	var half_city := CityLayout.half_extent()
+	# Every sidewalk, slab, building and roof detail of the whole city goes into one mesh
+	# (one surface per material). Collision boxes stay separate nodes under "Blocks".
+	var city := MeshMerger.new()
+	_park_tree_xforms.clear()
 	for by in n:
 		for bx in n:
 			var center := CityLayout.node_pos(Vector2i(bx, by)) + Vector3(CityLayout.BLOCK * 0.5, 0, CityLayout.BLOCK * 0.5)
 			# Sidewalk ring.
 			var sw_y := 0.08
 			var edge := cell_half - CityLayout.SIDEWALK * 0.5
-			MeshFactory.box(blocks, Vector3(cell_half * 2.0, 0.16, CityLayout.SIDEWALK), center + Vector3(0, sw_y, -edge), sidewalk_mat)
-			MeshFactory.box(blocks, Vector3(cell_half * 2.0, 0.16, CityLayout.SIDEWALK), center + Vector3(0, sw_y, edge), sidewalk_mat)
-			MeshFactory.box(blocks, Vector3(CityLayout.SIDEWALK, 0.16, inner_half * 2.0), center + Vector3(-edge, sw_y, 0), sidewalk_mat)
-			MeshFactory.box(blocks, Vector3(CityLayout.SIDEWALK, 0.16, inner_half * 2.0), center + Vector3(edge, sw_y, 0), sidewalk_mat)
+			city.add_box(Vector3(cell_half * 2.0, 0.16, CityLayout.SIDEWALK), center + Vector3(0, sw_y, -edge), sidewalk_mat)
+			city.add_box(Vector3(cell_half * 2.0, 0.16, CityLayout.SIDEWALK), center + Vector3(0, sw_y, edge), sidewalk_mat)
+			city.add_box(Vector3(CityLayout.SIDEWALK, 0.16, inner_half * 2.0), center + Vector3(-edge, sw_y, 0), sidewalk_mat)
+			city.add_box(Vector3(CityLayout.SIDEWALK, 0.16, inner_half * 2.0), center + Vector3(edge, sw_y, 0), sidewalk_mat)
 			var is_park := _rng.randf() < 0.2
 			if is_park:
-				MeshFactory.box(blocks, Vector3(inner_half * 2.0, 0.12, inner_half * 2.0), center + Vector3(0, 0.06, 0), park_mat)
-				_build_park(blocks, center, inner_half)
+				city.add_box(Vector3(inner_half * 2.0, 0.12, inner_half * 2.0), center + Vector3(0, 0.06, 0), park_mat)
+				_build_park(blocks, city, center, inner_half)
 				continue
 			# Ground slab for the lot.
-			MeshFactory.box(blocks, Vector3(inner_half * 2.0, 0.1, inner_half * 2.0), center + Vector3(0, 0.05, 0), MeshFactory.mat(Color(0.42, 0.4, 0.4) if not night else Color(0.16, 0.16, 0.18), 0.95))
+			city.add_box(Vector3(inner_half * 2.0, 0.1, inner_half * 2.0), center + Vector3(0, 0.05, 0), slab_mat)
 			var lot := inner_half
 			var dist_factor := 1.0 - clampf(center.length() / (half_city * 1.3), 0.0, 1.0)
 			for ly in 2:
@@ -256,39 +259,30 @@ func _build_blocks() -> void:
 					var h := _rng.randf_range(7.0, 14.0) + dist_factor * _rng.randf_range(8.0, 34.0)
 					var jitter := Vector3(_rng.randf_range(-1.0, 1.0), 0, _rng.randf_range(-1.0, 1.0))
 					var pos := lot_center + jitter
-					var mi := MeshFactory.box(blocks, Vector3(w, h, d), pos + Vector3(0, h * 0.5, 0), _building_mats[_rng.randi() % _building_mats.size()])
-					mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+					city.add_box(Vector3(w, h, d), pos + Vector3(0, h * 0.5, 0), _building_mats[_rng.randi() % _building_mats.size()])
 					# Roof details.
 					if _rng.randf() < 0.6:
-						MeshFactory.box(blocks, Vector3(w * 0.3, 2.0, d * 0.3), pos + Vector3(_rng.randf_range(-w * 0.2, w * 0.2), h + 1.0, _rng.randf_range(-d * 0.2, d * 0.2)), MeshFactory.mat(Color(0.5, 0.5, 0.52), 0.9))
+						city.add_box(Vector3(w * 0.3, 2.0, d * 0.3), pos + Vector3(_rng.randf_range(-w * 0.2, w * 0.2), h + 1.0, _rng.randf_range(-d * 0.2, d * 0.2)), roof_detail_mat)
 					if h > 30.0:
-						MeshFactory.cylinder(blocks, 0.15, 5.0, pos + Vector3(0, h + 2.5, 0), MeshFactory.mat(Color(0.8, 0.1, 0.1), 0.5, 0.0, Color(1, 0.1, 0.1), 3.0 if night else 0.0), Vector3.ZERO, 6)
+						city.add_cylinder(0.15, 5.0, pos + Vector3(0, h + 2.5, 0), antenna_mat, Vector3.ZERO, 6)
 					MeshFactory.static_box(blocks, Vector3(w, h, d), pos + Vector3(0, h * 0.5, 0))
+	city.instance(blocks, "CityMesh")
 
 
-func _build_park(parent: Node3D, center: Vector3, inner_half: float) -> void:
-	var tree_mesh := MeshFactory.tree_mesh(Color(0.2, 0.5, 0.2) if not night else Color(0.05, 0.14, 0.06))
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = tree_mesh
-	var count := 10
-	mm.instance_count = count
-	for i in count:
+func _build_park(parent: Node3D, city: MeshMerger, center: Vector3, inner_half: float) -> void:
+	# Trees join the city-wide tree MultiMesh (see _build_props).
+	for i in 10:
 		var pos := center + Vector3(_rng.randf_range(-inner_half + 3.0, inner_half - 3.0), 0.1, _rng.randf_range(-inner_half + 3.0, inner_half - 3.0))
-		var xf := Transform3D(Basis.from_euler(Vector3(0, _rng.randf_range(0, TAU), 0)).scaled(Vector3.ONE * _rng.randf_range(0.8, 1.3)), pos)
-		mm.set_instance_transform(i, xf)
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	parent.add_child(mmi)
+		_park_tree_xforms.append(Transform3D(Basis.from_euler(Vector3(0, _rng.randf_range(0, TAU), 0)).scaled(Vector3.ONE * _rng.randf_range(0.8, 1.3)), pos))
 	# Fountain in the middle.
 	var stone := MeshFactory.mat(Color(0.7, 0.7, 0.72), 0.8)
-	MeshFactory.cylinder(parent, 3.2, 0.6, center + Vector3(0, 0.4, 0), stone, Vector3.ZERO, 20)
-	MeshFactory.cylinder(parent, 2.7, 0.3, center + Vector3(0, 0.7, 0), MeshFactory.glass_mat(Color(0.3, 0.6, 0.9, 0.7)), Vector3.ZERO, 20)
-	MeshFactory.cylinder(parent, 0.4, 2.2, center + Vector3(0, 1.4, 0), stone, Vector3.ZERO, 10)
+	city.add_cylinder(3.2, 0.6, center + Vector3(0, 0.4, 0), stone, Vector3.ZERO, 20)
+	city.add_cylinder(2.7, 0.3, center + Vector3(0, 0.7, 0), MeshFactory.glass_mat(Color(0.3, 0.6, 0.9, 0.7)), Vector3.ZERO, 20)
+	city.add_cylinder(0.4, 2.2, center + Vector3(0, 1.4, 0), stone, Vector3.ZERO, 10)
 	# Paths.
 	var path_mat := MeshFactory.mat(Color(0.72, 0.66, 0.55), 1.0)
-	MeshFactory.box(parent, Vector3(inner_half * 2.0, 0.02, 2.5), center + Vector3(0, 0.13, 0), path_mat)
-	MeshFactory.box(parent, Vector3(2.5, 0.02, inner_half * 2.0), center + Vector3(0, 0.13, 0), path_mat)
+	city.add_box(Vector3(inner_half * 2.0, 0.02, 2.5), center + Vector3(0, 0.13, 0), path_mat)
+	city.add_box(Vector3(2.5, 0.02, inner_half * 2.0), center + Vector3(0, 0.13, 0), path_mat)
 	MeshFactory.static_box(parent, Vector3(6.4, 2.0, 6.4), center + Vector3(0, 1.0, 0))
 
 
@@ -321,6 +315,7 @@ func _build_props() -> void:
 						continue
 					var s := _rng.randf_range(0.8, 1.25)
 					tree_xforms.append(Transform3D(Basis.from_euler(Vector3(0, _rng.randf_range(0, TAU), 0)).scaled(Vector3.ONE * s), candidate))
+	tree_xforms.append_array(_park_tree_xforms)
 	_add_multimesh(MeshFactory.tree_mesh(Color(0.22, 0.52, 0.22) if not night else Color(0.05, 0.14, 0.06)), tree_xforms, "Trees")
 	_add_multimesh(MeshFactory.lamp_mesh(night), lamp_xforms, "Lamps")
 
@@ -352,9 +347,10 @@ func _build_boundary() -> void:
 	var limit := CityLayout.half_extent() + CityLayout.CURB + 4.0
 	var length := limit * 2.0 + 10.0
 	var hedge := MeshFactory.mat(Color(0.2, 0.42, 0.2) if not night else Color(0.05, 0.12, 0.05), 1.0)
+	var merger := MeshMerger.new()
 	for side in [-1.0, 1.0]:
-		MeshFactory.box(self, Vector3(length, 1.4, 1.6), Vector3(0, 0.7, side * limit), hedge)
-		MeshFactory.box(self, Vector3(1.6, 1.4, length), Vector3(side * limit, 0.7, 0), hedge)
+		merger.add_box(Vector3(length, 1.4, 1.6), Vector3(0, 0.7, side * limit), hedge)
+		merger.add_box(Vector3(1.6, 1.4, length), Vector3(side * limit, 0.7, 0), hedge)
 		MeshFactory.static_box(self, Vector3(length, 8.0, 1.6), Vector3(0, 4.0, side * limit))
 		MeshFactory.static_box(self, Vector3(1.6, 8.0, length), Vector3(side * limit, 4.0, 0))
 	# Distant skyline for the horizon.
@@ -366,8 +362,9 @@ func _build_boundary() -> void:
 		var pos := Vector3(cos(angle) * radius, 0, sin(angle) * radius)
 		var h := _rng.randf_range(20.0, 70.0)
 		var w := _rng.randf_range(14.0, 30.0)
-		var mi := MeshFactory.box(self, Vector3(w, h, w), pos + Vector3(0, h * 0.5, 0), sky_mat, rad_to_deg(angle))
-		mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		merger.add_box(Vector3(w, h, w), pos + Vector3(0, h * 0.5, 0), sky_mat, Basis(Vector3.UP, angle))
+	var boundary := merger.instance(self, "Boundary")
+	boundary.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 # ---------------------------------------------------------------- traffic

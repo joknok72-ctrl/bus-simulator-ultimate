@@ -3,24 +3,33 @@ extends Control
 ## Touch steering wheel drawn with vector primitives. Drag anywhere on the wheel to
 ## rotate it; it springs back to centre when released. "value" is -1..1.
 
+## Wheel rotation for full lock per steering sensitivity setting (low / normal / high).
+const LOCK_ANGLES: Array[float] = [deg_to_rad(190.0), deg_to_rad(150.0), deg_to_rad(110.0)]
 const MAX_ANGLE := deg_to_rad(150.0)
 const RETURN_SPEED := deg_to_rad(260.0)
 
 var value := 0.0
 var angle := 0.0
 var held := false
+var max_angle := MAX_ANGLE
 var _last_touch_angle := 0.0
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(240, 240)
+	_apply_sensitivity()
+	GameState.settings_changed.connect(_apply_sensitivity)
+
+
+func _apply_sensitivity() -> void:
+	max_angle = LOCK_ANGLES[GameState.steer_sensitivity()]
 
 
 func _process(delta: float) -> void:
 	if not held:
 		angle = move_toward(angle, 0.0, RETURN_SPEED * delta)
-	value = clampf(angle / MAX_ANGLE, -1.0, 1.0)
+	value = clampf(angle / max_angle, -1.0, 1.0)
 	queue_redraw()
 
 
@@ -42,7 +51,7 @@ func update_touch(global_point: Vector2) -> void:
 	var a := _touch_angle(global_point)
 	var diff := wrapf(a - _last_touch_angle, -PI, PI)
 	_last_touch_angle = a
-	angle = clampf(angle + diff, -MAX_ANGLE, MAX_ANGLE)
+	angle = clampf(angle + diff, -max_angle, max_angle)
 
 
 func end_touch() -> void:

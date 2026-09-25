@@ -9,6 +9,7 @@ const CAM_CHASE := 0
 const CAM_DRIVER := 1
 const CAM_TOP := 2
 const STATE_DRIVING := 1
+const STATE_WAIT_CLOSE := 3
 
 var _dir := ""
 
@@ -105,6 +106,30 @@ func _run() -> void:
 	game.camera_rig.set_mode(CAM_CHASE)
 	await _frames(40)
 	await _shot("11_game_bus_stop_boarding")
+	# Let boarding finish, close the doors (stop 1 done), then show the turn-by-turn guidance
+	# towards stop 2 from 22 m before the first corner (chase view).
+	var waited := 0
+	while game.state != STATE_WAIT_CLOSE and waited < 600:
+		await _frames(5)
+		waited += 5
+	game.bus.toggle_doors()
+	await create_timer(2.6).timeout   # let the "stop complete" message fade (real time)
+	await _frames(2)
+	var path: Array = game.route.path
+	var corner_seg_frac: float = 1.0 - 22.0 / (CityLayout.BLOCK * 2.0)
+	game.bus.stop_immediately()
+	var pre_corner: Vector3 = CityLayout.lane_point(path[0], path[1], corner_seg_frac)
+	game.bus.global_transform = Transform3D(Basis.IDENTITY, pre_corner).looking_at(pre_corner + CityLayout.seg_dir(path[0], path[1]), Vector3.UP)
+	game.bus.reset_physics_interpolation()
+	game.hud.touch_controls.gas.press()
+	await _frames(45)
+	await _shot("16_game_turn_guidance")
+	game.hud.touch_controls.gas.release()
+	# Damage smoke from the engine bay once the bus is badly hit.
+	game.bus.apply_damage(70.0)
+	game.hud.flash_damage()
+	await _frames(70)
+	await _shot("17_game_damage_smoke")
 	game.queue_free()
 	await _frames(3)
 	# --- night route from the driver's seat ---
