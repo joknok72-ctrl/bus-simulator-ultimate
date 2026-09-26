@@ -47,9 +47,10 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 5. [بناء APK لأندرويد | Build the Android APK](#بناء-apk-لأندرويد--build-the-android-apk)
 6. [التحقق والاختبارات | Validation & tests](#التحقق-والاختبارات--validation--tests)
 7. [بنية المشروع | Project structure](#بنية-المشروع--project-structure)
-8. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
-9. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
-10. [الرخص | Licenses](#الرخص--licenses)
+8. [ما الجديد في 1.3.0 | What's new in 1.3.0](#ما-الجديد-في-130--whats-new-in-130)
+9. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
+10. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
+11. [الرخص | Licenses](#الرخص--licenses)
 
 ---
 
@@ -61,6 +62,7 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | 4 خطوط حافلات بأوقات مختلفة من اليوم (نهار / غروب / ليل) تُفتح بالنجوم | 4 bus routes at different times of day (day / sunset / night), unlocked with stars |
 | محطات، ركاب ينتظرون ويصعدون/ينزلون، أبواب تُفتح وتُغلق | Bus stops, waiting passengers that board/alight, animated doors |
 | سيارات مرور، تصادمات تُخصم منها نقاط، حدّ سرعة مع تحذير | Traffic cars, collision penalties, speed limit with warning |
+| إشارات مرور في كل تقاطع (80 مدخلاً) بدورة متزامنة أخضر / أصفر / أحمر: إشارة رئيسية على الرصيف عند خط التوقف وأخرى معلّقة على ذراع في الجهة المقابلة، وسيارات المرور تتوقف عند الخط الأبيض؛ تجاوز الإشارة الحمراء بالحافلة يخصم 100 نقطة ويُفقد النجمة الثالثة، ومصباح صغير بجانب سهم الإرشاد يعرض لون الإشارة القادمة | Traffic lights at every crossing (80 approaches) on one synchronised green / amber / red cycle: a primary head on the kerb at the stop line plus a mast-arm repeater across the crossing, and traffic cars that stop at the white line; running a red light with the bus costs 100 points and the third star, and a small lamp beside the guidance arrow shows the colour of the next signal |
 | نتيجة ونجوم (1–3) وعملات لشراء ألوان (طلاءات) للحافلة من المرآب | Score, 1–3 stars and coins to buy bus liveries in the garage |
 | حفظ التقدّم محلياً (`user://save.cfg`) | Local save of progress (`user://save.cfg`) |
 | واجهة لمس كاملة: عجلة قيادة، أزرار، أو إمالة الهاتف (Accelerometer) | Full touch UI: steering wheel, buttons, or phone tilt (accelerometer) |
@@ -68,7 +70,7 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | إرشاد انعطاف بانعطاف: سطر في أعلى الشاشة (انعطف يميناً بعد 45 م / المحطة بعد 30 م) وسهم ثلاثي الأبعاد يتبع مسار الخط (المنعطف التالي) بدل الإشارة عبر المباني، وتحذير عند الخروج عن الخط، وتعتيم الجزء المقطوع من الخط على الخريطة | Turn-by-turn guidance: a HUD line (Turn right in 45 m / Bus stop in 30 m), a 3D arrow that follows the route (next corner) instead of pointing through buildings, an off-route warning, and the driven part of the route dimmed on the minimap |
 | مكافأة "توقّف مثالي" (+50) عند التوقف في منتصف منطقة المحطة بمحاذاة الرصيف؛ تُعدّ في شاشة النتائج | "Perfect stop" bonus (+50) for stopping centred in the zone and parallel to the kerb; counted on the results screen |
 | خريطة صغيرة، عدّاد سرعة، مؤقّت | Minimap, speedometer, timer |
-| أداء للهواتف: كل الهندسة الثابتة (الحافلة، المدينة، الطرق، المحطات، السيارات، الركاب) تُدمج في شبكات قليلة — نداءات الرسم أقل بنحو 60% (865 → 354 في الخط الأول) | Phone performance: all static geometry (bus, city, roads, stops, cars, passengers) is baked into a few meshes — about 60% fewer draw calls (865 → 354 on route 1) |
+| أداء للهواتف: كل الهندسة الثابتة (الحافلة، المدينة، الطرق، المحطات، الإشارات، السيارات، الركاب) تُدمج في شبكات قليلة — نداءات الرسم أقل بنحو 57% (865 → 368 في الخط الأول، مع إشارات المرور) | Phone performance: all static geometry (bus, city, roads, stops, signals, cars, passengers) is baked into a few meshes — about 57% fewer draw calls (865 → 368 on route 1, traffic lights included) |
 | واجهة تحترم منطقة الأمان (فتحة الكاميرا/الحواف المستديرة) على أندرويد | HUD respects the display safe area (camera cutout / rounded corners) on Android |
 | دخان من المحرك عند تلف شديد | Engine smoke when the bus is badly damaged |
 | أصوات مولّدة برمجياً (محرك، بوق، أبواب، نقر) واهتزاز | Procedural audio (engine, horn, doors, clicks) and vibration |
@@ -80,9 +82,9 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 
 ## طريقة اللعب والتحكم | Gameplay & controls
 
-**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). التصادم أو تجاوز السرعة أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت.
+**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء — المصباح الصغير بجانب سهم الإرشاد يعرض لونها. التصادم أو تجاوز السرعة أو تجاوز إشارة حمراء (−100) أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت.
 
-**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Collisions, speeding, missed stops and leaving the route cost score or time.
+**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Stop at the white line when the traffic light ahead is red — the small lamp beside the guidance arrow shows its colour. Collisions, speeding, running a red light (−100), missed stops and leaving the route cost score or time.
 
 | التحكم على الهاتف | Touch | لوحة المفاتيح (للتجربة على الحاسوب) | Keyboard (desktop testing) |
 |---|---|---|---|
@@ -147,19 +149,21 @@ Short version (Linux, after preparing JDK 17 and the Android SDK as in `docs/AND
 `sh tools/build_android.sh`. It fetches the official Android templates if missing, imports the project and exports
 `build/CityBusDriver-debug.apk`; pass `RELEASE_KEYSTORE`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASS` to also export a signed
 release APK. The Android preset (`export_presets.cfg`) targets **arm64-v8a**, package `com.khaled.citybusdriver`,
-version `1.2.0` (code 3), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
+version `1.3.0` (code 4), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
 
 ---
 
 ## التحقق والاختبارات | Validation & tests
 
-`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (84 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
+`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (133 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، إشارات المرور: دورة الأطوار، هندسة التقاطعات والإشارات المدمجة، توقّف السيارات عند الخط الأحمر وانطلاقها عند الأخضر، عقوبة تجاوز الإشارة الحمراء مرة واحدة لكل تقاطع مع فترة السماح، ابتعاد المحطات ونقطة الانطلاق والمحطة النهائية عن التقاطعات، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
 
 `tools/validate.sh` runs, with Godot 4.7.2-stable: the import, the headless smoke test `tests/smoke_test.gd`
-(84 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
+(133 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
 and the perfect-stop bonus, collisions and damage smoke, turn-by-turn guidance and off-route detection, traffic yielding
-to the bus, steering sensitivity, route completion and scoring, and the camera rig: driver eye placement, clear line of
-sight, look-into-turn, view blending, chase camera obstacle avoidance) and a headless boot of the main scene.
+to the bus, traffic lights — phase cycle, crossing geometry and the baked signal mesh, cars stopping at a red line and
+driving on at green, the red-light penalty charged once per crossing with its grace period, stops / spawn / terminal kept
+clear of the crossings — steering sensitivity, route completion and scoring, and the camera rig: driver eye placement,
+clear line of sight, look-into-turn, view blending, chase camera obstacle avoidance) and a headless boot of the main scene.
 
 ```sh
 GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
@@ -167,10 +171,10 @@ GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
 
 يشغّل GitHub Actions السكربت نفسه قبل تصدير الـ APK ويعرض النتيجة في ملخّص التشغيل. / GitHub Actions runs the same script before exporting the APK and shows the result in the run summary.
 
-آخر نتيجة مسجّلة (2026-09-26، Godot 4.7.2.stable.official) / last recorded result:
-`import errors = 0` · `84 checks, 0 failures – SMOKE TEST OK` · `boot exit 0` — see [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and `build/logs/`.
+آخر نتيجة مسجّلة (2026-09-26، Godot 4.7.2.stable.official، الإصدار 1.3.0) / last recorded result:
+`import errors = 0` · `133 checks, 0 failures – SMOKE TEST OK` · `boot exit 0`. ملف [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) والـ APK المحفوظ في المستودع يصفان بناء 1.2.0؛ يُنشر APK الإصدار 1.3.0 عبر GitHub Actions عند الدفع إلى `main`. / [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and the committed APK still describe the 1.2.0 build; the 1.3.0 APK is published by GitHub Actions on the next push to `main`.
 
-`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: 354 نداء رسم و46 MeshInstance3D (كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: 354 draw calls, 46 MeshInstance3D (865 / 587 before mesh merging):
+`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: 368 نداء رسم و47 MeshInstance3D (354 و46 في 1.2.0؛ إشارات المرور كلّها شبكة واحدة بعشرة أسطح لا تُلقي ظلالاً؛ كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: 368 draw calls, 47 MeshInstance3D (354 / 46 in 1.2.0 — all traffic lights are one 10-surface mesh that casts no shadows; 865 / 587 before mesh merging):
 `xvfb-run -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 --resolution 1280x720 -s res://tools/perf_probe.gd`
 
 `tools/screenshot.gd` يلتقط لقطات حقيقية من اللعبة (يحتاج شاشة أو Xvfb):
@@ -195,9 +199,9 @@ assets/ui/splash.png     شاشة الإقلاع
 scenes/                  bus.tscn, game.tscn, ui/main_menu.tscn, ui/hud.tscn
 scripts/autoload/        GameState (حفظ/تقدّم/إعدادات)، AudioSynth (أصوات مولّدة)
 scripts/vehicle/         bus.gd (فيزياء الحافلة والأبواب والدخان)، camera_rig.gd
-scripts/world/           توليد المدينة، الخطوط، المحطات، الركاب، المرور، مصنع الشبكات، mesh_merger.gd (دمج الهندسة)، route_guide.gd (الإرشاد)
-scripts/ui/              القائمة، HUD، عناصر اللمس، الخريطة، العدّاد، سهم الانعطاف، الإيقاف، النتائج
-scripts/game.gd          منطق المهمّة (المحطات، النقاط، المؤقّت، النهاية)
+scripts/world/           توليد المدينة، الخطوط، المحطات، الركاب، المرور، traffic_signals.gd (إشارات المرور)، مصنع الشبكات، mesh_merger.gd (دمج الهندسة)، route_guide.gd (الإرشاد)
+scripts/ui/              القائمة، HUD، عناصر اللمس، الخريطة، العدّاد، سهم الانعطاف، مؤشر الإشارة (signal_indicator.gd)، الإيقاف، النتائج
+scripts/game.gd          منطق المهمّة (المحطات، النقاط، المؤقّت، مخالفات الإشارة الحمراء، النهاية)
 shaders/                 مظهر المباني والطرق
 theme/main_theme.tres    سمة الواجهة
 tests/smoke_test.gd      اختبار دخان بلا واجهة رسومية
@@ -208,6 +212,26 @@ build/                   مخرجات البناء: CityBusDriver-debug.apk, BUI
 ```
 
 ---
+
+## ما الجديد في 1.3.0 | What's new in 1.3.0
+
+**إشارات مرور** — كل تقاطع في شبكة 5×5 صار مُشَوَّراً: 80 مدخلاً، لكل منها خط توقف أبيض قبل ممر المشاة، إشارة رئيسية على عمود عند الرصيف بجانب الخط (تُقرأ أثناء الاقتراب) وإشارة مكرِّرة معلّقة على ذراع في الزاوية المقابلة (تُقرأ من مقعد السائق أثناء الانتظار عند الخط). الإشارات كلّها على ساعة واحدة (`TrafficSignals`): 8 ث أخضر، 2 ث أصفر، 0.6 ث أحمر للجميع، بالتناوب بين شوارع الشمال–الجنوب والشرق–الغرب (دورة 21.2 ث). تبدأ إشارة الشارع الأول حمراء وتتحوّل إلى الأخضر بعد ثوانٍ من انتهاء العدّ التنازلي. مدينة كاملة من الإشارات = شبكة واحدة بعشرة أسطح (4 مواد ثابتة + 6 مواد للمصابيح مشتركة بين كل إشارات المحور)، فتبديل الطور ستّ تحديثات مواد فقط، والمصابيح غير مظلَّلة (unshaded) كي يبقى الأحمر أحمرَ في ضوء الشمس. الساعة تتقدّم في التكّة الفيزيائية فتتوقف مع الإيقاف المؤقت.
+
+**سيارات تلتزم بالإشارة** — تتباطأ حتى الخط الأبيض عند الأحمر (وتفحص التقاطع *التالي* على الشارع، لا زاوية حلقتها فقط، كي لا تعبر التقاطعات الوسطى على الأحمر)، وتُكمل على الأصفر إذا كانت أقرب من مسافة الكبح المريحة، وتنتظر خلف بعضها؛ الطابور خلف إشارة حمراء أو خلف الحافلة لا يُعدّ "تعطّلاً" فلا يخترقه كاسر التعطّل.
+
+**مخالفة الإشارة الحمراء** — دخول مقدمة الحافلة إلى التقاطع والإشارة حمراء (بعد فترة سماح 0.35 ث من التحوّل) يخصم 100 نقطة مع رسالة وصوت واهتزاز، مرة واحدة لكل تقاطع؛ عدد المخالفات يظهر في شاشة النتائج، والنجمة الثالثة تتطلّب صفر مخالفات. مصباح إشارة صغير في سطر الإرشاد يعرض لون الإشارة القادمة (حتى 80 م) في كل الكاميرات.
+
+**تخطيط الخطوط** — أُزيحت المحطات التي كانت تقع فوق التقاطعات أو على حوافها (سبع محطات كانت في مركز التقاطع تماماً، مثل المحطتين 2 و3 في الخط الأول، وتسع أخرى تتداخل معه) إلى منتصف الأحياء (≥ 16 م عن مركز أي تقاطع، يفحصه اختبار الدخان)؛ نقطة الانطلاق والمحطة النهائية ابتعدتا عن التقاطعات؛ وأُضيفت 30 ث إلى مهلة كل خط لانتظار الإشارات. سطر جديد في "كيف تلعب".
+
+**Traffic lights** — every crossing of the 5×5 grid is now signalised: 80 approaches, each with a white stop line before the crosswalk, a primary head on a kerb pole at the line (read while approaching) and a mast-arm repeater on the far corner (read from the driver's seat while waiting at the line). All signals run on one clock (`TrafficSignals`): 8 s green, 2 s amber, 0.6 s all-red, alternating between the north–south and east–west streets (21.2 s cycle); the first light of a route starts red and turns green a few seconds after the countdown. The whole city of signals is one 10-surface mesh (4 static materials + 6 lamp materials shared by every head of an axis), so a phase change is six material updates, and the lenses are unshaded so red stays red in sunlight. The clock advances on physics ticks, so it pauses with the game.
+
+**Traffic that obeys the lights** — cars roll to a stop at the white line on red (checking the *next* crossing along their street, not just their loop corner, so multi-block loop sides no longer run intermediate reds), commit through amber when they are too close to brake comfortably, and queue behind each other; a queue behind a red light or behind the bus never counts as a deadlock, so the deadlock breaker cannot drive through it.
+
+**Red-light violations** — the bus's front bumper entering a crossing on red (after a 0.35 s grace period from the change) costs 100 points with a message, a sound and vibration, charged once per crossing; the count appears on the results screen and the third star now requires zero violations. A small signal lamp in the guidance row shows the colour of the next light (up to 80 m ahead) in every camera view.
+
+**Route layout** — stops that sat on or overlapped a crossing (seven were exactly at a crossing centre, e.g. stops 2 and 3 of route 1, and nine more overlapped one) moved mid-block (≥ 16 m from any crossing centre, checked by the smoke test); the spawn point and the terminal moved further from their crossings; every route got 30 s more for waiting at lights. A new how-to line.
+
+Validation: `tests/smoke_test.gd` grew from 84 to 133 checks (phase logic, crossing geometry, the baked signal mesh, a car stopping at red and driving on at green, the penalty / once-per-crossing / grace / green cases, route clearances). Draw calls on route 1: 354 → 368 (one mesh, no shadow pass). Version 1.3.0 (Android `versionCode` 4).
 
 ## ما الجديد في 1.2.0 | What's new in 1.2.0
 

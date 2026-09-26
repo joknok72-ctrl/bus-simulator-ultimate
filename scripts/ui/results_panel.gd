@@ -38,6 +38,7 @@ func show_results(result: Dictionary) -> void:
 	_add_row(tr("RESULT_STOPS"), "%d / %d" % [int(result.get("stops_served", 0)), int(result.get("stops_total", 0))])
 	_add_row(tr("RESULT_PERFECT_STOPS"), "%d / %d" % [int(result.get("perfect_stops", 0)), int(result.get("stops_total", 0))])
 	_add_row(tr("RESULT_COLLISIONS"), str(int(result.get("collisions", 0))))
+	_add_row(tr("RESULT_RED_LIGHTS"), str(int(result.get("red_lights", 0))))
 	_add_row(tr("RESULT_TIME_BONUS"), "+%d" % int(result.get("time_bonus", 0)))
 	_add_row(tr("RESULT_TOTAL"), str(int(result.get("total", 0))), true)
 	_add_row(tr("RESULT_COINS"), "+%d" % int(result.get("coins", 0)))

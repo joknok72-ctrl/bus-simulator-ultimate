@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_autoloads()
 	await _test_main_menu()
 	await _test_gameplay()
+	await _test_signals()
 	await _test_guidance()
 	await _test_camera()
 	await _test_all_routes()
@@ -85,7 +86,7 @@ func _test_main_menu() -> void:
 	_check(menu.get_node("UI/Root/PageRoutes/Cards").get_child_count() == 4, "4 route cards built")
 	_check(menu.get_node("UI/Root/PageGarage/Cards").get_child_count() == 6, "6 garage cards built")
 	_check(menu.get_node("UI/Root/PageSettings/Panel/Grid").get_child_count() == 18, "settings rows built (incl. steering sensitivity)")
-	_check(menu.get_node("UI/Root/PageHowTo/Panel/Lines").get_child_count() == 7, "7 how-to lines built")
+	_check(menu.get_node("UI/Root/PageHowTo/Panel/Lines").get_child_count() == 8, "8 how-to lines built (incl. traffic lights)")
 	var menu_meshes: int = menu.get_node("Turntable/Bus").find_children("*", "MeshInstance3D", true, false).size()
 	_check(menu_meshes < 20, "bus geometry is merged (%d mesh instances, was ~120)" % menu_meshes)
 	var about_count: int = menu.get_node("UI/Root/PageAbout/Panel/Scroll/Lines").get_child_count()
@@ -124,6 +125,7 @@ func _test_gameplay() -> void:
 	var total_meshes: int = game.find_children("*", "MeshInstance3D", true, false).size()
 	_check(total_meshes < 90, "scene uses few mesh instances (%d, was ~590)" % total_meshes)
 	_check(world.get_node_or_null("Roads") != null and world.get_node("Roads").mesh.get_surface_count() == 2, "roads merged into one mesh")
+	_check(world.signals != null and world.signals.approaches == 80 and world.get_node_or_null("Signals/SignalsMesh") != null, "traffic lights built for all 80 approaches")
 	# Turn-by-turn guidance at the spawn: the first stop is on the same road segment.
 	_check(game.guidance.turn == RouteGuide.Turn.STOP and game.guidance.distance > 20.0, "guidance at spawn: bus stop ahead (%.0f m)" % game.guidance.distance)
 	_check(game.hud.turn_arrow != null and game.hud.distance_label.text.contains("m"), "HUD guidance line shows the distance (\"%s\")" % game.hud.distance_label.text)
@@ -155,6 +157,8 @@ func _test_gameplay() -> void:
 	_check(moved > 8.0, "bus drives forward (%.1f m)" % moved)
 	_check(bus.speed > 1.0, "bus has speed (%.1f m/s)" % bus.speed)
 	_check(bus.is_on_floor(), "bus stays on the ground")
+	# The first light is red while the player gets going; the HUD icon shows it.
+	_check(game.hud.signal_indicator.visible and game.hud.signal_indicator.light == TrafficSignals.Light.RED, "HUD shows the red light ahead")
 	# Brake to a stop.
 	game.hud.touch_controls.brake_pedal.press()
 	await _frames(240)
@@ -182,6 +186,50 @@ func _test_gameplay() -> void:
 	_check(game.score > 0, "score increased (%d)" % game.score)
 	_check(game.perfect_stops == 1 and game.score == 4 * 50 + 100 + 50, "perfect stop bonus awarded (%d)" % game.score)
 	_check(game.guidance.turn == RouteGuide.Turn.RIGHT or game.guidance.turn == RouteGuide.Turn.LEFT, "guidance now points to the next corner")
+	# Traffic lights: driving the front bumper into the next crossing on red costs points -
+	# once per entry, not within the grace period after the change, never on green. The
+	# traffic cars are parked out of the way so a car in the crossing cannot add a collision.
+	var sig = world.signals
+	var route: Dictionary = RouteData.get_route("route_1")
+	var dir: Vector3 = CityLayout.seg_dir(route.path[0], route.path[1])
+	var axis: int = TrafficSignals.axis_of(dir)
+	var crossing: Vector2i = route.path[0] + Vector2i(roundi(dir.x), roundi(dir.z))
+	var lane: Vector3 = CityLayout.node_pos(crossing) + CityLayout.right_of(dir) * CityLayout.OUTER_LANE
+	var heading := Basis.looking_at(dir, Vector3.UP)
+	var outside := Transform3D(heading, lane - dir * 24.0)
+	var inside := Transform3D(heading, lane - dir * (CityLayout.CURB - 1.0 + float(bus.LENGTH) * 0.5))   # bumper 1 m in
+	var parked: Array[Transform3D] = []
+	for c in world.cars:
+		parked.append(c.global_transform)
+		c.set_physics_process(false)
+		c.global_position.y = -100.0
+	var score_before: int = game.score
+	bus.stop_immediately()
+	bus.global_transform = outside
+	sig.set_time(TrafficSignals.time_before_green(axis, 5.0))   # red, green in 5 s
+	await _frames(3)
+	_check(sig.light_for(axis) == TrafficSignals.Light.RED and game.red_lights == 0, "light ahead is red, no violation yet")
+	bus.global_transform = inside
+	await _frames(3)
+	_check(game.red_lights == 1 and game.score == score_before - 100, "running the red light costs 100 points (%d)" % game.score)
+	await _frames(10)
+	_check(game.red_lights == 1, "a violation is charged once per crossing")
+	bus.global_transform = outside
+	await _frames(3)
+	var red_length: float = TrafficSignals.CYCLE - TrafficSignals.GREEN_TIME - TrafficSignals.YELLOW_TIME
+	sig.set_time(TrafficSignals.time_before_green(axis, red_length - 0.1))   # turned red 0.1 s ago
+	bus.global_transform = inside
+	await _frames(3)
+	_check(game.red_lights == 1, "no penalty in the split second after the change to red")
+	bus.global_transform = outside
+	await _frames(3)
+	sig.set_time(TrafficSignals.time_before_green(axis, 0.0))   # green
+	bus.global_transform = inside
+	await _frames(3)
+	_check(game.red_lights == 1 and sig.light_for(axis) == TrafficSignals.Light.GREEN, "entering on green is free")
+	for i in world.cars.size():
+		world.cars[i].global_transform = parked[i]
+		world.cars[i].set_physics_process(true)
 	# Missed stop detection.
 	var stop2 = world.stops[1]
 	bus.global_transform = stop2.global_transform.translated(-stop2.global_transform.basis.z * 40.0)
@@ -203,9 +251,87 @@ func _test_gameplay() -> void:
 	_check(gs.last_result.get("success", false) == true, "result recorded as success")
 	_check(gs.get_route_stars("route_1") >= 1, "stars saved (%d)" % gs.get_route_stars("route_1"))
 	_check(int(gs.last_result.get("perfect_stops", -1)) == 1, "perfect stops recorded in the result")
+	_check(int(gs.last_result.get("red_lights", -1)) == 1, "red lights run recorded in the result")
 	await _frames(600)
 	_check(game.results.visible, "results panel shown")
 	game.queue_free()
+	await _frames(2)
+
+
+func _test_signals() -> void:
+	print("-- traffic signals")
+	# queue_free() runs at the end of an idle frame, not a physics tick: make sure the gameplay
+	# scene is really gone so its bus and cars cannot interfere with the isolated car below.
+	await process_frame
+	await process_frame
+	_check(TrafficCar.all_cars.is_empty() and TrafficCar.bus_ref == null, "gameplay scene released its traffic cars and bus reference")
+	var NS := TrafficSignals.Axis.NS
+	var EW := TrafficSignals.Axis.EW
+	var GREEN := TrafficSignals.Light.GREEN
+	var YELLOW := TrafficSignals.Light.YELLOW
+	var RED := TrafficSignals.Light.RED
+	var g := TrafficSignals.GREEN_TIME
+	var y := TrafficSignals.YELLOW_TIME
+	var half := TrafficSignals.HALF_CYCLE
+	# Phase logic: the two axes alternate, separated by a yellow and an all-red gap.
+	_check(TrafficSignals.light_at(0.0, NS) == GREEN and TrafficSignals.light_at(0.0, EW) == RED, "cycle starts green for north-south, red for east-west")
+	_check(TrafficSignals.light_at(g + 0.5, NS) == YELLOW, "yellow follows green")
+	_check(TrafficSignals.light_at(g + y + 0.3, NS) == RED and TrafficSignals.light_at(g + y + 0.3, EW) == RED, "all-red gap between the phases")
+	_check(TrafficSignals.light_at(half + 0.1, EW) == GREEN and TrafficSignals.light_at(half + 0.1, NS) == RED, "east-west turns green after the half cycle")
+	_check(TrafficSignals.light_at(5.0 + TrafficSignals.CYCLE, NS) == TrafficSignals.light_at(5.0, NS), "phases repeat every cycle")
+	_check(absf(TrafficSignals.red_seconds_at(g + y + 1.0, NS) - 1.0) < 0.001 and TrafficSignals.red_seconds_at(1.0, NS) == 0.0, "seconds since the change to red")
+	var t := TrafficSignals.time_before_green(EW, 8.0)
+	_check(TrafficSignals.light_at(t + 8.0, EW) == GREEN and TrafficSignals.light_at(t + 7.9, EW) == RED and TrafficSignals.red_seconds_at(t, EW) > 0.0, "time_before_green: red now, green in exactly 8 s")
+	# Geometry helpers around the crossing at grid node (2, 2).
+	var node := Vector2i(2, 2)
+	var centre := CityLayout.node_pos(node)
+	_check(TrafficSignals.intersection_at(centre + Vector3(6.9, 0, -6.9)) == node, "point inside the crossing maps to its node")
+	_check(TrafficSignals.intersection_at(centre + Vector3(7.5, 0, 0)) == TrafficSignals.NO_NODE and TrafficSignals.intersection_at(centre + Vector3(7.5, 0, 0), 1.0) == node, "point on the street is outside the crossing (unless a margin is allowed)")
+	_check(TrafficSignals.intersection_at(CityLayout.lane_point(Vector2i(0, 0), Vector2i(1, 0), 0.5)) == TrafficSignals.NO_NODE, "mid-block point is not in a crossing")
+	var line_from_centre := CityLayout.CURB + TrafficSignals.STOP_LINE_OFFSET
+	_check(absf(TrafficSignals.stop_line_distance(node, Vector3(1, 0, 0), centre + Vector3(-20.0, 0, 5.25)) - (20.0 - line_from_centre)) < 0.001, "stop line is %.1f m before the crossing centre" % line_from_centre)
+	_check(TrafficSignals.axis_of(Vector3(0, 0, -1)) == NS and TrafficSignals.axis_of(Vector3(-1, 0, 0)) == EW, "axis of travel from a direction")
+	# The signals of the whole city and one car, in an otherwise empty world.
+	var holder := Node3D.new()
+	root.add_child(holder)
+	var sig := TrafficSignals.new()
+	holder.add_child(sig)
+	sig.build(false, 0.0)
+	_check(sig.approaches == 80, "80 signalised approaches built (%d)" % sig.approaches)
+	var surfaces: int = sig.mesh_instance.mesh.get_surface_count() if sig.mesh_instance != null else 0
+	_check(surfaces == 10, "signals baked into one mesh (%d surfaces: 4 static + 6 lamp materials)" % surfaces)
+	var aabb: AABB = sig.mesh_instance.mesh.get_aabb() if sig.mesh_instance != null else AABB()
+	_check(aabb.size.x > 250.0 and aabb.size.z > 250.0 and aabb.end.y > 5.5 and aabb.end.y < 7.0, "signal geometry spans the city at mast-arm height (%s)" % aabb)
+	var info := sig.next_signal_ahead(centre + Vector3(-25.5, 0, 5.25), Vector3(1, 0, 0), 5.5)
+	_check(not info.is_empty() and info.node == node and info.axis == EW and absf(info.distance - (20.0 - line_from_centre)) < 0.001 and info.light == RED, "next signal ahead: node, axis, distance to the line, colour (%s)" % info)
+	info = sig.next_signal_ahead(centre + Vector3(-25.5, 0, 5.25), Vector3(-1, 0, 0), 5.5)
+	_check(not info.is_empty() and info.node == Vector2i(1, 2), "next signal ahead in the opposite direction is the previous crossing")
+	_check(sig.next_signal_ahead(CityLayout.node_pos(Vector2i(0, 2)) + Vector3(-20.0, 0, -5.25), Vector3(1, 0, 0), 5.5).is_empty(), "no signal when entering the grid from outside")
+	_check(sig.next_signal_ahead(centre + Vector3(32.0, 0, 32.0), Vector3(1, 0, 0), 5.5).is_empty(), "no signal for a vehicle off the street grid")
+	# A car approaching (2, 2) from (1, 2) along +X: its loop side spans two blocks, so the
+	# crossing at (2, 2) is a through crossing, not a corner - it must still stop there on red,
+	# roll to a halt at the white line and drive on when its light turns green.
+	var loop: Array[Vector2i] = [Vector2i(1, 2), Vector2i(3, 2), Vector2i(3, 3), Vector2i(1, 3)]
+	var car := TrafficCar.new()
+	holder.add_child(car)
+	car.setup(TrafficCar.loop_points(loop, CityLayout.OUTER_LANE), loop, 1, false, false, sig)
+	var dir := Vector3(1, 0, 0)
+	var start := centre + Vector3(-30.0, 0, CityLayout.OUTER_LANE)
+	car.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), start)
+	car.cruise_speed = 10.0
+	car.speed = 8.0
+	sig.set_time(TrafficSignals.time_before_green(EW, 9.5))   # red now, green in 9.5 s
+	await _frames(6 * Engine.physics_ticks_per_second)
+	var to_line := TrafficSignals.stop_line_distance(node, dir, car.global_position + dir * car.half_length)
+	_check(car.waiting_at_light and car.queued, "car waits at the red light of a through crossing")
+	_check(absf(car.speed) < 0.5 and to_line >= -0.2 and to_line < 3.0, "car stopped at the white line (%.2f m/s, %.1f m before the line)" % [car.speed, to_line])
+	_check(car.blocked_timer == 0.0, "waiting at a red light never counts as a deadlock")
+	sig.set_time(TrafficSignals.time_before_green(EW, 0.0))   # green
+	await _frames(int(1.5 * Engine.physics_ticks_per_second))
+	_check(not car.waiting_at_light and car.speed > 2.0, "car drives on when the light turns green (%.1f m/s)" % car.speed)
+	await _frames(int(2.5 * Engine.physics_ticks_per_second))
+	_check((car.global_position - centre).dot(dir) > 5.0, "car cleared the crossing (%.1f m past the centre)" % (car.global_position - centre).dot(dir))
+	holder.queue_free()
 	await _frames(2)
 
 
@@ -344,6 +470,18 @@ func _test_all_routes() -> void:
 		_check(ok, "%s builds (%d stops, %d cars, %s)" % [route.id, game.world.stops.size(), game.world.cars.size(), route.time_of_day])
 		var spawn: Vector3 = game.bus.global_position
 		_check(absf(spawn.x) < 200.0 and absf(spawn.z) < 200.0, "%s bus spawn inside city" % route.id)
+		# Traffic lights: every stop, the spawn and the terminal keep clear of the crossings.
+		var world = game.world
+		var fwd: Vector3 = -game.bus.global_transform.basis.z
+		_check(world.signals != null and world.signals.approaches == 80 and world.signals.light_for(TrafficSignals.axis_of(fwd)) == TrafficSignals.Light.RED, "%s: lights built, first light red while the player gets going" % route.id)
+		var min_clear := INF
+		for i in route.stops.size():
+			min_clear = minf(min_clear, RouteData.stop_clearance(route, i))
+		_check(min_clear >= RouteData.MIN_STOP_CLEARANCE, "%s stops are clear of the crossings (min %.1f m)" % [route.id, min_clear])
+		var half_bus: float = float(game.bus.LENGTH) * 0.5
+		_check(TrafficSignals.intersection_at(spawn - fwd * (half_bus + 1.0)) == TrafficSignals.NO_NODE and TrafficSignals.intersection_at(spawn + fwd * (half_bus + 1.0)) == TrafficSignals.NO_NODE, "%s bus spawns clear of the first crossing" % route.id)
+		var term_fwd: Vector3 = -world.terminal.global_transform.basis.z
+		_check(TrafficSignals.intersection_at(world.terminal.global_position + term_fwd * (half_bus + 4.0)) == TrafficSignals.NO_NODE, "%s terminal leaves room before the last crossing" % route.id)
 		game.queue_free()
 		await _frames(2)
 	gs.selected_route_id = "route_1"
