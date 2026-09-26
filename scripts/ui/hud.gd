@@ -9,6 +9,7 @@ extends Control
 @onready var stop_label: Label = $TopCenter/VBox/StopLabel
 @onready var distance_label: Label = $TopCenter/VBox/GuideRow/DistanceLabel
 @onready var turn_arrow: TurnArrow = $TopCenter/VBox/GuideRow/TurnArrow
+@onready var signal_indicator: SignalIndicator = $TopCenter/VBox/GuideRow/SignalIndicator
 @onready var time_label: Label = $TopRight/Grid/TimeLabel
 @onready var score_label: Label = $TopRight/Grid/ScoreLabel
 @onready var passengers_label: Label = $TopRight/Grid/PassengersLabel
@@ -100,6 +101,14 @@ func set_guidance(g: Dictionary) -> void:
 		_:
 			distance_label.text = tr("GUIDE_STRAIGHT") % dist
 	distance_label.add_theme_color_override("font_color", color)
+
+
+## Traffic light the bus is heading towards (see TrafficSignals.next_signal_ahead); an empty
+## dictionary hides the icon.
+func set_signal(info: Dictionary) -> void:
+	signal_indicator.visible = not info.is_empty()
+	if not info.is_empty():
+		signal_indicator.light = int(info.get("light", TrafficSignals.Light.RED))
 
 
 func show_message(text: String, duration: float = 2.0, color: Color = Color.WHITE) -> void:

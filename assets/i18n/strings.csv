@@ -124,3 +124,6 @@ MSG_OFF_ROUTE,You left the route! Follow the arrow back,خرجت عن الخط! 
 MSG_PERFECT_STOP,Perfect stop! +%d,توقّف مثالي! +%d
 RESULT_PERFECT_STOPS,Perfect stops,التوقفات المثالية
 HOWTO_7,Follow the turn-by-turn arrow under the stop name. Stopping exactly in the middle of the zone earns a perfect-stop bonus.,اتبع سهم الانعطاف أسفل اسم المحطة. التوقف في منتصف المنطقة بدقة يمنحك مكافأة التوقف المثالي.
+HOWTO_8,Stop at the white line when the traffic light ahead is red; the small light beside the arrow shows its colour. Running a red light costs points and the third star.,توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء؛ المصباح الصغير بجانب السهم يعرض لونها. تجاوز الإشارة الحمراء يخصم نقاطاً ويُفقدك النجمة الثالثة.
+MSG_RED_LIGHT,Red light! -%d,تجاوزت الإشارة الحمراء! -%d
+RESULT_RED_LIGHTS,Red lights run,الإشارات الحمراء المتجاوَزة

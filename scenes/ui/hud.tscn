@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/ui/touch_controls.gd" id="2_touch"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/ui/minimap.gd" id="5_minimap"]
 [ext_resource type="Script" path="res://scripts/ui/speedometer.gd" id="6_speedo"]
 [ext_resource type="Script" path="res://scripts/ui/turn_arrow.gd" id="7_turn"]
+[ext_resource type="Script" path="res://scripts/ui/signal_indicator.gd" id="8_signal"]
 
 [node name="HUD" type="Control"]
 layout_mode = 3
@@ -244,6 +245,13 @@ theme_override_font_sizes/font_size = 21
 text = "0 m"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="SignalIndicator" type="Control" parent="TopCenter/VBox/GuideRow"]
+visible = false
+custom_minimum_size = Vector2(24, 36)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("8_signal")
 
 [node name="TopRight" type="PanelContainer" parent="."]
 layout_mode = 1

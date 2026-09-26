@@ -63,7 +63,7 @@ $GODOT --headless --path . --export-debug "Android" build/CityBusDriver-debug.ap
 ```
 
 الإعداد `Android` معرّف في `export_presets.cfg`:
-arm64-v8a فقط، الحزمة `com.khaled.citybusdriver`، الإصدار `1.2.0` (code 3)، وضع ملء الشاشة، صلاحية `VIBRATE`،
+arm64-v8a فقط، الحزمة `com.khaled.citybusdriver`، الإصدار `1.3.0` (code 4)، وضع ملء الشاشة، صلاحية `VIBRATE`،
 أيقونات adaptive من `android/icons/`. minSdk = 24 (Android 7.0) وtargetSdk = 36 (افتراضيات Godot 4.7).
 
 ### نسخة release موقّعة | Signed release

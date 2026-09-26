@@ -2,8 +2,8 @@ class_name CityBuilder
 extends Node3D
 ## Procedurally builds the whole city for a route: ground, roads, sidewalks,
 ## buildings, parks, trees, street lamps, boundary walls, sky/lighting, bus stops,
-## the terminal and ambient traffic. Deterministic per route (seeded RNG) so a
-## route always looks the same.
+## the terminal, traffic signals and ambient traffic. Deterministic per route (seeded
+## RNG) so a route always looks the same.
 ##
 ## All static geometry is baked with MeshMerger into a few meshes (roads, city blocks,
 ## boundary) with one surface per material - a handful of draw calls instead of ~300
@@ -25,6 +25,7 @@ var route: Dictionary = {}
 var sun: DirectionalLight3D
 var world_env: WorldEnvironment
 var cars: Array[TrafficCar] = []
+var signals: TrafficSignals
 
 var _rng := RandomNumberGenerator.new()
 var _building_mats: Array[ShaderMaterial] = []
@@ -46,6 +47,7 @@ func build(route_def: Dictionary, quality: int) -> void:
 	_build_blocks()
 	_build_props()
 	_build_boundary()
+	_build_signals()
 	_build_traffic()
 
 
@@ -185,11 +187,12 @@ func _build_stops() -> void:
 		stop.setup(i, pos, dir, count, night)
 		stops.append(stop)
 		_stop_positions.append(pos)
-	# Terminal near the end of the last segment.
+	# Terminal near the end of the last segment, far enough from the last crossing that a bus
+	# overshooting the marker by a few metres still stops short of the intersection.
 	var last_a: Vector2i = path[path.size() - 2]
 	var last_b: Vector2i = path[path.size() - 1]
 	var seg_length := CityLayout.node_pos(last_a).distance_to(CityLayout.node_pos(last_b))
-	var t_frac := 1.0 - 14.0 / seg_length
+	var t_frac := 1.0 - 18.0 / seg_length
 	var t_pos := CityLayout.lane_point(last_a, last_b, t_frac)
 	terminal = BusStop.new()
 	terminal.name = "Terminal"
@@ -198,14 +201,15 @@ func _build_stops() -> void:
 	_stop_positions.append(t_pos)
 
 
-## World position and heading for the bus at the start of the route.
+## World position and heading for the bus at the start of the route (the whole 11 m bus
+## stands clear of the first crossing so cross traffic is not held up during the countdown).
 func get_spawn_transform() -> Transform3D:
 	var path: Array = route.path
 	var a: Vector2i = path[0]
 	var b: Vector2i = path[1]
 	var dir := CityLayout.seg_dir(a, b)
 	var seg_length := CityLayout.node_pos(a).distance_to(CityLayout.node_pos(b))
-	var pos := CityLayout.lane_point(a, b, 12.0 / seg_length)
+	var pos := CityLayout.lane_point(a, b, 16.0 / seg_length)
 	var xf := Transform3D.IDENTITY
 	xf.origin = pos
 	xf = xf.looking_at(pos + dir, Vector3.UP)
@@ -367,6 +371,19 @@ func _build_boundary() -> void:
 	boundary.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
+# ---------------------------------------------------------------- traffic signals
+func _build_signals() -> void:
+	signals = TrafficSignals.new()
+	signals.name = "Signals"
+	add_child(signals)
+	# Deterministic start phase: the street the bus starts on turns green about 8 s after the
+	# route loads (the countdown takes ~3.5 s), so the first light is red while the player
+	# gets going and changes as the bus approaches.
+	var path: Array = route.path
+	var spawn_axis := TrafficSignals.axis_of(CityLayout.seg_dir(path[0], path[1]))
+	signals.build(night, TrafficSignals.time_before_green(spawn_axis, 8.0))
+
+
 # ---------------------------------------------------------------- traffic
 func _build_traffic() -> void:
 	cars.clear()
@@ -378,18 +395,10 @@ func _build_traffic() -> void:
 		var x1 := _rng.randi_range(x0 + 1, n - 1)
 		var y0 := _rng.randi_range(0, n - 2)
 		var y1 := _rng.randi_range(y0 + 1, n - 1)
-		var loop: Array = [Vector2i(x0, y0), Vector2i(x1, y0), Vector2i(x1, y1), Vector2i(x0, y1)]
+		var loop: Array[Vector2i] = [Vector2i(x0, y0), Vector2i(x1, y0), Vector2i(x1, y1), Vector2i(x0, y1)]
 		var lane := CityLayout.OUTER_LANE if _rng.randf() < 0.5 else CityLayout.INNER_LANE
-		var pts := PackedVector3Array()
-		for k in loop.size():
-			var prev: Vector2i = loop[(k - 1 + loop.size()) % loop.size()]
-			var cur: Vector2i = loop[k]
-			var next: Vector2i = loop[(k + 1) % loop.size()]
-			var d1 := CityLayout.seg_dir(prev, cur)
-			var d2 := CityLayout.seg_dir(cur, next)
-			pts.append(CityLayout.node_pos(cur) + CityLayout.right_of(d1) * lane + CityLayout.right_of(d2) * lane)
 		var car := TrafficCar.new()
 		car.name = "Car%d" % (i + 1)
 		add_child(car)
-		car.setup(pts, _rng.randi_range(0, 3), night, _rng.randf() < 0.2)
+		car.setup(TrafficCar.loop_points(loop, lane), loop, _rng.randi_range(0, 3), night, _rng.randf() < 0.2, signals)
 		cars.append(car)

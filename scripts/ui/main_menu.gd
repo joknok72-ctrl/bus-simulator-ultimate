@@ -319,7 +319,7 @@ func _add_setting(title: String, value: String, on_pressed: Callable, danger: bo
 func _build_howto() -> void:
 	for child in howto_lines.get_children():
 		child.queue_free()
-	for i in range(1, 8):
+	for i in range(1, 9):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
 		var num := Label.new()

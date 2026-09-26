@@ -1,6 +1,7 @@
 extends Node3D
 ## Mission controller for a bus route: builds the city, spawns the bus, runs the
-## stop/boarding state machine, scoring, timer, collisions and the results screen.
+## stop/boarding state machine, scoring, timer, collisions, traffic-light violations and
+## the results screen.
 
 enum State { COUNTDOWN, DRIVING, BOARDING, WAIT_CLOSE, FINISHED }
 
@@ -11,6 +12,8 @@ const PASSENGER_POINTS := 50
 const MISSED_PENALTY := 200
 const PERFECT_STOP_BONUS := 50
 const PERFECT_STOP_TOLERANCE := 2.0    # metres along the lane from the stop marker
+const RED_LIGHT_PENALTY := 100
+const SIGNAL_HUD_RANGE := 80.0         # the HUD shows the next traffic light from this far away
 const BOARDING_INTERVAL := 0.6
 const CAMERA_NAMES: Array[String] = ["CAM_CHASE", "CAM_DRIVER", "CAM_TOP"]
 ## Guide arrow placement: above the bus for the outside views; in the driver view it sits
@@ -43,6 +46,7 @@ var current_stop := 0
 var total_passengers := 0
 var speed_limit := 50
 var perfect_stops := 0
+var red_lights := 0
 ## Turn-by-turn guidance along the route polyline (next corner / stop, off-route detection).
 var guide := RouteGuide.new()
 var guidance: Dictionary = {}
@@ -58,6 +62,7 @@ var _arrow_bob := 0.0
 var _finish_started := false
 var _was_off_route := false
 var _perfect_awarded: Dictionary = {}   # stop index -> true (bonus paid once per stop)
+var _bus_intersection := TrafficSignals.NO_NODE   # crossing the bus's front bumper is currently in
 
 
 func _ready() -> void:
@@ -216,6 +221,7 @@ func _physics_process(delta: float) -> void:
 	# The arrow follows the (physics-driven) bus, so move it on the physics tick too.
 	_update_guidance()
 	_update_guide_arrow(delta)
+	_check_red_light()
 
 
 func _process(delta: float) -> void:
@@ -224,6 +230,7 @@ func _process(delta: float) -> void:
 	var target := _current_target_position()
 	hud.set_speed(bus.speed_kmh(), speed_limit, bus.reverse_gear or bus.speed < -0.05, bus.doors_open)
 	hud.minimap.current_stop_index = current_stop
+	_update_signal_hud()
 	if state == State.FINISHED or state == State.COUNTDOWN:
 		return
 	time_left -= delta
@@ -255,6 +262,51 @@ func _check_off_route() -> void:
 		hud.show_message(tr("MSG_OFF_ROUTE"), 2.5, Color(1.0, 0.65, 0.4))
 		AudioSynth.play("fail", -10.0, 1.3)
 	_was_off_route = off
+
+
+# ---------------------------------------------------------------- traffic lights
+## Penalises driving into a signalised crossing while the light for the bus's direction is
+## red. The reference point is the front bumper entering the crossing square itself (the
+## white stop line lies TrafficSignals.STOP_LINE_OFFSET metres before it, so creeping over
+## the line is not fined), and TrafficSignals.RED_GRACE tolerates a bumper that is over the
+## edge a split second after the change to red. Charged once per entry.
+func _check_red_light() -> void:
+	var sig := world.signals
+	if sig == null:
+		return
+	var front := bus.global_position - bus.global_transform.basis.z * (Bus.LENGTH * 0.5)
+	if _bus_intersection != TrafficSignals.NO_NODE:
+		# Still in the same crossing (with a little hysteresis so a bus standing right on the
+		# edge does not count as entering twice).
+		if TrafficSignals.intersection_at(front, 1.0) == _bus_intersection:
+			return
+		_bus_intersection = TrafficSignals.NO_NODE
+	var node := TrafficSignals.intersection_at(front)
+	if node == TrafficSignals.NO_NODE:
+		return
+	_bus_intersection = node
+	if state != State.DRIVING:
+		return
+	var axis := TrafficSignals.axis_of(-bus.global_transform.basis.z)
+	if sig.light_for(axis) == TrafficSignals.Light.RED and sig.red_seconds(axis) > TrafficSignals.RED_GRACE:
+		red_lights += 1
+		score = maxi(0, score - RED_LIGHT_PENALTY)
+		hud.show_message(tr("MSG_RED_LIGHT") % RED_LIGHT_PENALTY, 2.0, Color(1.0, 0.4, 0.35))
+		AudioSynth.play("fail", -6.0, 1.15)
+		GameState.vibrate(120)
+
+
+## Feeds the HUD the traffic light the bus is heading towards, when one is reasonably close.
+func _update_signal_hud() -> void:
+	var sig := world.signals
+	if sig == null or state == State.FINISHED:
+		hud.set_signal({})
+		return
+	var info := sig.next_signal_ahead(bus.global_position, -bus.global_transform.basis.z, Bus.LENGTH * 0.5)
+	if info.is_empty() or float(info.distance) > SIGNAL_HUD_RANGE:
+		hud.set_signal({})
+	else:
+		hud.set_signal(info)
 
 
 func _current_target_position() -> Vector3:
@@ -458,7 +510,7 @@ func _finish(success: bool, title_key: String) -> void:
 		stars = 1
 		if missed_stops == 0 and collisions <= 2:
 			stars = 2
-		if missed_stops == 0 and collisions == 0 and time_left >= float(route.time_limit) * 0.15:
+		if missed_stops == 0 and collisions == 0 and red_lights == 0 and time_left >= float(route.time_limit) * 0.15:
 			stars = 3
 	var coins := int(total / 10) if success else int(total / 25)
 	var new_best := false
@@ -472,7 +524,7 @@ func _finish(success: bool, title_key: String) -> void:
 		"time_bonus": time_bonus, "total": total, "stars": stars, "coins": coins,
 		"delivered": delivered, "total_passengers": total_passengers, "stops_served": stops_served,
 		"stops_total": world.stops.size(), "collisions": collisions, "new_best": new_best,
-		"perfect_stops": perfect_stops,
+		"perfect_stops": perfect_stops, "red_lights": red_lights,
 	}
 	await get_tree().create_timer(1.8).timeout
 	if is_inside_tree():
