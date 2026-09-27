@@ -57,6 +57,12 @@ var reverse_gear := false
 var engine_on := true
 var damage := 0.0                  # 0..100
 var night := false
+## Accelerations felt in the cabin this tick, for the passenger comfort rating (see
+## Game._update_comfort): the driver-induced longitudinal acceleration (m/s², negative while
+## braking - collision impulses are not included) and the centripetal acceleration of the
+## current turn (m/s², positive when turning right).
+var accel_long := 0.0
+var accel_lat := 0.0
 
 var _vertical_velocity := 0.0
 var _reverse_hold := 0.0
@@ -454,6 +460,7 @@ func _physics_process(delta: float) -> void:
 		_reverse_hold = 0.0
 	reverse_gear = _reverse_hold > REVERSE_HOLD_TIME
 	# Longitudinal dynamics
+	var speed_before := speed
 	var accel := 0.0
 	if throttle > 0.0:
 		if speed < -0.05:
@@ -474,6 +481,9 @@ func _physics_process(delta: float) -> void:
 	speed = clampf(new_speed, -MAX_REVERSE, MAX_SPEED)
 	if absf(speed) < 0.02 and throttle <= 0.0 and not reverse_gear:
 		speed = 0.0
+	# What the passengers feel: measured before the collision response below, so a crash is
+	# not also counted as an emergency stop.
+	accel_long = (speed - speed_before) / delta if delta > 0.0 else 0.0
 	# Steering
 	var speed_ratio := clampf(absf(speed) / MAX_SPEED, 0.0, 1.0)
 	var max_steer := lerpf(MAX_STEER_LOW, MAX_STEER_HIGH, speed_ratio)
@@ -482,7 +492,10 @@ func _physics_process(delta: float) -> void:
 	steer_angle = move_toward(steer_angle, target_steer, rate * delta)
 	if absf(speed) > 0.01:
 		var yaw_rate := speed / WHEELBASE * tan(steer_angle)
+		accel_lat = speed * yaw_rate   # centripetal: v * omega
 		rotate_y(-yaw_rate * delta)
+	else:
+		accel_lat = 0.0
 	# Gravity / ground
 	if is_on_floor():
 		_vertical_velocity = 0.0

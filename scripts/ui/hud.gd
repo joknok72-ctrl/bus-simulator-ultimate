@@ -14,14 +14,26 @@ extends Control
 @onready var score_label: Label = $TopRight/Grid/ScoreLabel
 @onready var passengers_label: Label = $TopRight/Grid/PassengersLabel
 @onready var damage_bar: ProgressBar = $TopRight/Grid/DamageBar
+@onready var comfort_bar: ProgressBar = $TopRight/Grid/ComfortBar
 @onready var message_label: Label = $MessageLabel
 @onready var countdown_label: Label = $Countdown
 
+const COMFORT_GOOD := Color(0.35, 0.85, 0.45)
+const COMFORT_FAIR := Color(0.95, 0.75, 0.25)
+const COMFORT_POOR := Color(0.95, 0.35, 0.25)
+
 var _message_tween: Tween
 var _time_warning := false
+var _comfort_fill: StyleBoxFlat
 
 
 func _ready() -> void:
+	# The theme's progress fill is the red of the damage bar; comfort is a good thing and gets
+	# its own green fill that turns amber, then red, as the passengers lose patience.
+	_comfort_fill = StyleBoxFlat.new()
+	_comfort_fill.bg_color = COMFORT_GOOD
+	_comfort_fill.set_corner_radius_all(8)
+	comfort_bar.add_theme_stylebox_override("fill", _comfort_fill)
 	_apply_safe_area()
 	get_viewport().size_changed.connect(_apply_safe_area)
 
@@ -67,6 +79,12 @@ func set_stats(time_left: float, score: int, onboard: int, delivered: int, total
 	score_label.text = str(score)
 	passengers_label.text = "%d / %d" % [onboard, total] if delivered == 0 else "%d / %d  (+%d)" % [onboard, total, delivered]
 	damage_bar.value = damage
+
+
+## Passenger comfort rating 0..100 (see Game._update_comfort).
+func set_comfort(value: float) -> void:
+	comfort_bar.value = value
+	_comfort_fill.bg_color = COMFORT_GOOD if value >= 70.0 else (COMFORT_FAIR if value >= 40.0 else COMFORT_POOR)
 
 
 func set_next_stop(index: int, distance: float, is_terminal: bool, stops_total: int) -> void:

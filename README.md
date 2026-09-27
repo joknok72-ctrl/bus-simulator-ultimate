@@ -47,10 +47,11 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 5. [بناء APK لأندرويد | Build the Android APK](#بناء-apk-لأندرويد--build-the-android-apk)
 6. [التحقق والاختبارات | Validation & tests](#التحقق-والاختبارات--validation--tests)
 7. [بنية المشروع | Project structure](#بنية-المشروع--project-structure)
-8. [ما الجديد في 1.3.0 | What's new in 1.3.0](#ما-الجديد-في-130--whats-new-in-130)
-9. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
-10. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
-11. [الرخص | Licenses](#الرخص--licenses)
+8. [ما الجديد في 1.4.0 | What's new in 1.4.0](#ما-الجديد-في-140--whats-new-in-140)
+9. [ما الجديد في 1.3.0 | What's new in 1.3.0](#ما-الجديد-في-130--whats-new-in-130)
+10. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
+11. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
+12. [الرخص | Licenses](#الرخص--licenses)
 
 ---
 
@@ -69,6 +70,7 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | 3 كاميرات مع انتقال سلس بينها: تتبّع (تتجنّب المباني)، مقعد السائق (قمرة قيادة حقيقية: لوحة عدادات، مقود يدور مع التوجيه، أعمدة، مرايا، النظر داخل المنعطف، اهتزاز خفيف مع السرعة)، ومن الأعلى | 3 cameras with smooth blending: chase (keeps clear of buildings), driver seat (real cockpit: dashboard, steering wheel that turns with your input, pillars, mirrors, looks into turns, gentle speed vibration) and top-down |
 | إرشاد انعطاف بانعطاف: سطر في أعلى الشاشة (انعطف يميناً بعد 45 م / المحطة بعد 30 م) وسهم ثلاثي الأبعاد يتبع مسار الخط (المنعطف التالي) بدل الإشارة عبر المباني، وتحذير عند الخروج عن الخط، وتعتيم الجزء المقطوع من الخط على الخريطة | Turn-by-turn guidance: a HUD line (Turn right in 45 m / Bus stop in 30 m), a 3D arrow that follows the route (next corner) instead of pointing through buildings, an off-route warning, and the driven part of the route dimmed on the minimap |
 | مكافأة "توقّف مثالي" (+50) عند التوقف في منتصف منطقة المحطة بمحاذاة الرصيف؛ تُعدّ في شاشة النتائج | "Perfect stop" bonus (+50) for stopping centred in the zone and parallel to the kerb; counted on the results screen |
+| راحة الركاب: مع وجود ركاب على متن الحافلة تُخفض الفرملة العنيفة والانعطاف السريع والتصادمات تقييم الراحة (شريط أخضر في لوحة الإحصاءات يتحوّل إلى أصفر ثم أحمر) مع تحذير وصرير إطارات؛ التقييم يمنح مكافأة تصل إلى +200 في المحطة النهائية | Passenger comfort: with passengers on board harsh braking, fast cornering and collisions lower a comfort rating (a green bar in the stats panel that turns amber, then red) with a warning and a tyre squeal; the rating pays a bonus of up to +200 at the terminal |
 | خريطة صغيرة، عدّاد سرعة، مؤقّت | Minimap, speedometer, timer |
 | أداء للهواتف: كل الهندسة الثابتة (الحافلة، المدينة، الطرق، المحطات، الإشارات، السيارات، الركاب) تُدمج في شبكات قليلة — نداءات الرسم أقل بنحو 57% (865 → 368 في الخط الأول، مع إشارات المرور) | Phone performance: all static geometry (bus, city, roads, stops, signals, cars, passengers) is baked into a few meshes — about 57% fewer draw calls (865 → 368 on route 1, traffic lights included) |
 | واجهة تحترم منطقة الأمان (فتحة الكاميرا/الحواف المستديرة) على أندرويد | HUD respects the display safe area (camera cutout / rounded corners) on Android |
@@ -82,9 +84,9 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 
 ## طريقة اللعب والتحكم | Gameplay & controls
 
-**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء — المصباح الصغير بجانب سهم الإرشاد يعرض لونها. التصادم أو تجاوز السرعة أو تجاوز إشارة حمراء (−100) أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت.
+**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء — المصباح الصغير بجانب سهم الإرشاد يعرض لونها. التصادم أو تجاوز السرعة أو تجاوز إشارة حمراء (−100) أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت. ومع وجود ركاب على متن الحافلة قُد بسلاسة: خفّف السرعة مبكراً بدل الفرملة العنيفة وانعطف ببطء، فشريط "الراحة" يمنحك مكافأة تصل إلى +200 في المحطة النهائية.
 
-**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Stop at the white line when the traffic light ahead is red — the small lamp beside the guidance arrow shows its colour. Collisions, speeding, running a red light (−100), missed stops and leaving the route cost score or time.
+**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Stop at the white line when the traffic light ahead is red — the small lamp beside the guidance arrow shows its colour. Collisions, speeding, running a red light (−100), missed stops and leaving the route cost score or time. With passengers on board, drive smoothly: slow down early instead of braking hard and take corners slowly — the "Comfort" bar pays a bonus of up to +200 at the terminal.
 
 | التحكم على الهاتف | Touch | لوحة المفاتيح (للتجربة على الحاسوب) | Keyboard (desktop testing) |
 |---|---|---|---|
@@ -149,17 +151,18 @@ Short version (Linux, after preparing JDK 17 and the Android SDK as in `docs/AND
 `sh tools/build_android.sh`. It fetches the official Android templates if missing, imports the project and exports
 `build/CityBusDriver-debug.apk`; pass `RELEASE_KEYSTORE`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASS` to also export a signed
 release APK. The Android preset (`export_presets.cfg`) targets **arm64-v8a**, package `com.khaled.citybusdriver`,
-version `1.3.0` (code 4), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
+version `1.4.0` (code 5), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
 
 ---
 
 ## التحقق والاختبارات | Validation & tests
 
-`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (133 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، إشارات المرور: دورة الأطوار، هندسة التقاطعات والإشارات المدمجة، توقّف السيارات عند الخط الأحمر وانطلاقها عند الأخضر، عقوبة تجاوز الإشارة الحمراء مرة واحدة لكل تقاطع مع فترة السماح، ابتعاد المحطات ونقطة الانطلاق والمحطة النهائية عن التقاطعات، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
+`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (150 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، راحة الركاب (الفرملة العنيفة والانعطاف الحاد والتصادم مع ركاب تُخفض التقييم، والقيادة الهادئة أو بلا ركاب لا تؤثر، والمكافأة في النتيجة)، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، إشارات المرور: دورة الأطوار، هندسة التقاطعات والإشارات المدمجة، توقّف السيارات عند الخط الأحمر وانطلاقها عند الأخضر، عقوبة تجاوز الإشارة الحمراء مرة واحدة لكل تقاطع مع فترة السماح، ابتعاد المحطات ونقطة الانطلاق والمحطة النهائية عن التقاطعات، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
 
 `tools/validate.sh` runs, with Godot 4.7.2-stable: the import, the headless smoke test `tests/smoke_test.gd`
-(133 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
-and the perfect-stop bonus, collisions and damage smoke, turn-by-turn guidance and off-route detection, traffic yielding
+(150 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
+and the perfect-stop bonus, passenger comfort — harsh braking, a sharp turn and a collision with passengers on board lower
+the rating, gentle driving or an empty bus does not, the bonus is part of the result — collisions and damage smoke, turn-by-turn guidance and off-route detection, traffic yielding
 to the bus, traffic lights — phase cycle, crossing geometry and the baked signal mesh, cars stopping at a red line and
 driving on at green, the red-light penalty charged once per crossing with its grace period, stops / spawn / terminal kept
 clear of the crossings — steering sensitivity, route completion and scoring, and the camera rig: driver eye placement,
@@ -171,10 +174,10 @@ GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
 
 يشغّل GitHub Actions السكربت نفسه قبل تصدير الـ APK ويعرض النتيجة في ملخّص التشغيل. / GitHub Actions runs the same script before exporting the APK and shows the result in the run summary.
 
-آخر نتيجة مسجّلة (2026-09-26، Godot 4.7.2.stable.official، الإصدار 1.3.0) / last recorded result:
-`import errors = 0` · `133 checks, 0 failures – SMOKE TEST OK` · `boot exit 0`. ملف [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) والـ APK المحفوظ في المستودع يصفان بناء 1.2.0؛ يُنشر APK الإصدار 1.3.0 عبر GitHub Actions عند الدفع إلى `main`. / [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and the committed APK still describe the 1.2.0 build; the 1.3.0 APK is published by GitHub Actions on the next push to `main`.
+آخر نتيجة مسجّلة (2026-09-27، Godot 4.7.2.stable.official، الإصدار 1.4.0) / last recorded result:
+`import errors = 0` · `150 checks, 0 failures – SMOKE TEST OK` · `boot exit 0`. ملف [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) والـ APK المحفوظ في المستودع يصفان بناء 1.2.0؛ يُنشر APK الإصدار 1.4.0 عبر GitHub Actions عند الدفع إلى `main`. / [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and the committed APK still describe the 1.2.0 build; the 1.4.0 APK is published by GitHub Actions on the next push to `main`.
 
-`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: 368 نداء رسم و47 MeshInstance3D (354 و46 في 1.2.0؛ إشارات المرور كلّها شبكة واحدة بعشرة أسطح لا تُلقي ظلالاً؛ كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: 368 draw calls, 47 MeshInstance3D (354 / 46 in 1.2.0 — all traffic lights are one 10-surface mesh that casts no shadows; 865 / 587 before mesh merging):
+`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: 372 نداء رسم و47 MeshInstance3D (368 في 1.3.0 — الأربعة الإضافية هي صفّ "الراحة" في لوحة الإحصاءات؛ 354 و46 في 1.2.0؛ كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: 372 draw calls, 47 MeshInstance3D (368 in 1.3.0 — the four extra are the "Comfort" row of the stats panel; 354 / 46 in 1.2.0; 865 / 587 before mesh merging):
 `xvfb-run -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 --resolution 1280x720 -s res://tools/perf_probe.gd`
 
 `tools/screenshot.gd` يلتقط لقطات حقيقية من اللعبة (يحتاج شاشة أو Xvfb):
@@ -201,7 +204,7 @@ scripts/autoload/        GameState (حفظ/تقدّم/إعدادات)، AudioSyn
 scripts/vehicle/         bus.gd (فيزياء الحافلة والأبواب والدخان)، camera_rig.gd
 scripts/world/           توليد المدينة، الخطوط، المحطات، الركاب، المرور، traffic_signals.gd (إشارات المرور)، مصنع الشبكات، mesh_merger.gd (دمج الهندسة)، route_guide.gd (الإرشاد)
 scripts/ui/              القائمة، HUD، عناصر اللمس، الخريطة، العدّاد، سهم الانعطاف، مؤشر الإشارة (signal_indicator.gd)، الإيقاف، النتائج
-scripts/game.gd          منطق المهمّة (المحطات، النقاط، المؤقّت، مخالفات الإشارة الحمراء، النهاية)
+scripts/game.gd          منطق المهمّة (المحطات، النقاط، المؤقّت، مخالفات الإشارة الحمراء، راحة الركاب، النهاية)
 shaders/                 مظهر المباني والطرق
 theme/main_theme.tres    سمة الواجهة
 tests/smoke_test.gd      اختبار دخان بلا واجهة رسومية
@@ -212,6 +215,18 @@ build/                   مخرجات البناء: CityBusDriver-debug.apk, BUI
 ```
 
 ---
+
+## ما الجديد في 1.4.0 | What's new in 1.4.0
+
+**راحة الركاب** — صار للقيادة السلسة قيمة: ما دام على متن الحافلة ركاب، تُخفض الفرملة الأقوى من 4 م/ث² (دوّاسة المكابح الكاملة تبطئ الحافلة بنحو 10 م/ث²) والانعطاف بتسارع جانبي يفوق 4.5 م/ث² (منعطف على القفل الكامل بسرعة 40 كم/س يولّد نحو 8 م/ث²) تقييم "الراحة" بما يتناسب مع الزيادة عن الحد ومدة المناورة — لمسة مكابح قصيرة لا تكلّف شيئاً تقريباً، وتوقّف طارئ من 50 كم/س يكلّف نحو 10 نقاط من 100 — ويكلّف كل تصادم 12 نقطة. المناورة التي تستمر 0.3 ث تُعدّ مرة واحدة وتُعلَن على الشاشة (فرملة عنيفة! / انعطاف حاد!) مع صرير إطارات مولَّد برمجياً واهتزاز، بفاصل 4 ث بين تحذيرين. الحافلة تحسب الآن التسارع الطولي والجانبي المحسوسَين في المقصورة (`Bus.accel_long` / `Bus.accel_lat`، بمعزل عن دفعات التصادم)، والمرحلة الأولى قبل صعود أول راكب حرّة ليتعلّم اللاعب الحافلة.
+
+**الواجهة والنتائج** — صفّ "الراحة" في لوحة الإحصاءات: شريط أخضر يتحوّل إلى أصفر تحت 70 وأحمر تحت 40. في شاشة النتائج سطر "راحة الركاب 87 % (+174)": التقييم يمنح مكافأة حتى +200 نقطة (تقييم × 2) عند إنهاء الخط مع توصيل ركاب، وتُضاف إلى المجموع والعملات؛ النجوم لم تتغيّر. صفوف شاشة النتائج أصغر قليلاً (22 بكسل بلا فراغ) كي تبقى اللوحة داخل شاشة ارتفاعها 720، والأرقام في القيم (13 / 16، +895) تُرسم دائماً من اليسار إلى اليمين — كانت الواجهة العربية تعكسها إلى "16 / 13" و"895+" في النتائج وعدّاد الركاب. سطر جديد في "كيف تلعب".
+
+**Passenger comfort** — smooth driving now counts. While passengers are on board, braking harder than 4 m/s² (the full pedal decelerates at ~10 m/s²) and cornering with more than 4.5 m/s² of lateral acceleration (a full-lock corner at 40 km/h pulls ~8 m/s²) drain a "Comfort" rating in proportion to the excess and the duration of the manoeuvre — a brief dab on the brake costs almost nothing, an emergency stop from 50 km/h about 10 of the 100 points — and every collision costs 12. A manoeuvre that lasts 0.3 s is counted once and announced on the HUD ("Harsh braking!" / "Too fast in the turn!") with a procedural tyre squeal and a vibration, at most every 4 s. The bus now exposes the longitudinal and lateral accelerations felt in the cabin (`Bus.accel_long` / `Bus.accel_lat`, measured apart from collision impulses), and the first leg before anyone boards is free, so the player can learn the bus.
+
+**HUD and results** — a "Comfort" row in the stats panel: a green bar that turns amber below 70 and red below 40. The results screen shows "Passenger comfort 87 % (+174)": the rating pays a bonus of up to +200 points (rating × 2) on a completed route with passengers delivered, added to the total and the coins; the star conditions are unchanged. The result rows are slightly smaller (22 px, no gap) so the panel stays inside a 720 px tall screen, and numeric values ("13 / 16", "+895") are always laid out left-to-right — the Arabic layout used to reorder them into "16 / 13" and "895+" on the results screen and the passenger counter. A new how-to line.
+
+Validation: `tests/smoke_test.gd` grew from 133 to 150 checks (harsh braking / sharp turn / collision with passengers on board, gentle driving and an empty bus, the counters and HUD messages, the HUD bar, the bonus and the total in the result, the results grid). Draw calls on route 1: 368 → 372 (the HUD row). Version 1.4.0 (Android `versionCode` 5).
 
 ## ما الجديد في 1.3.0 | What's new in 1.3.0
 

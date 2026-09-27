@@ -1,9 +1,10 @@
 extends Node3D
 ## Mission controller for a bus route: builds the city, spawns the bus, runs the
-## stop/boarding state machine, scoring, timer, collisions, traffic-light violations and
-## the results screen.
+## stop/boarding state machine, scoring, timer, collisions, traffic-light violations,
+## the passenger comfort rating and the results screen.
 
 enum State { COUNTDOWN, DRIVING, BOARDING, WAIT_CLOSE, FINISHED }
+enum Harsh { NONE, BRAKE, TURN }
 
 const BUS_SCENE := preload("res://scenes/bus.tscn")
 const MISSED_STOP_DISTANCE := 30.0
@@ -14,6 +15,17 @@ const PERFECT_STOP_BONUS := 50
 const PERFECT_STOP_TOLERANCE := 2.0    # metres along the lane from the stop marker
 const RED_LIGHT_PENALTY := 100
 const SIGNAL_HUD_RANGE := 80.0         # the HUD shows the next traffic light from this far away
+## Passenger comfort: standing passengers tolerate about 4 m/s² before they stumble. The full
+## brake pedal decelerates the bus at ~10 m/s², and a lane corner taken at 40 km/h on full
+## lock pulls ~8 m/s² sideways, so the skill is to slow down early and corner slowly.
+const COMFORT_BRAKE_LIMIT := 4.0       # m/s² of deceleration before braking counts as harsh
+const COMFORT_TURN_LIMIT := 4.5        # m/s² of lateral acceleration before a turn counts as sharp
+const COMFORT_DRAIN_RATE := 1.2        # comfort points lost per second per m/s² over the limit
+const COMFORT_COLLISION_LOSS := 12.0   # comfort points lost per collision
+const COMFORT_EVENT_DELAY := 0.3       # seconds a harsh manoeuvre must last before passengers complain
+const COMFORT_MSG_COOLDOWN := 4.0      # seconds between two complaints on the HUD
+const COMFORT_MIN_SPEED_KMH := 8.0     # braking below this speed is just a normal stop
+const COMFORT_BONUS_MAX := 200         # points for a 100 % comfort rating at the terminal
 const BOARDING_INTERVAL := 0.6
 const CAMERA_NAMES: Array[String] = ["CAM_CHASE", "CAM_DRIVER", "CAM_TOP"]
 ## Guide arrow placement: above the bus for the outside views; in the driver view it sits
@@ -47,6 +59,11 @@ var total_passengers := 0
 var speed_limit := 50
 var perfect_stops := 0
 var red_lights := 0
+## Passenger comfort rating, 100 = a perfectly smooth ride. Drains while passengers are on
+## board and the bus brakes hard, corners fast or hits something; pays a bonus at the terminal.
+var comfort := 100.0
+var harsh_brakes := 0
+var sharp_turns := 0
 ## Turn-by-turn guidance along the route polyline (next corner / stop, off-route detection).
 var guide := RouteGuide.new()
 var guidance: Dictionary = {}
@@ -63,6 +80,9 @@ var _finish_started := false
 var _was_off_route := false
 var _perfect_awarded: Dictionary = {}   # stop index -> true (bonus paid once per stop)
 var _bus_intersection := TrafficSignals.NO_NODE   # crossing the bus's front bumper is currently in
+var _harsh_timer := 0.0                 # how long the current harsh manoeuvre has lasted
+var _harsh_reported := false            # the current manoeuvre has been counted
+var _comfort_msg_timer := 0.0
 
 
 func _ready() -> void:
@@ -222,6 +242,7 @@ func _physics_process(delta: float) -> void:
 	_update_guidance()
 	_update_guide_arrow(delta)
 	_check_red_light()
+	_update_comfort(delta)
 
 
 func _process(delta: float) -> void:
@@ -254,6 +275,7 @@ func _process(delta: float) -> void:
 	hud.set_guidance(guidance)
 	hud.minimap.progress_seg = int(guidance.get("seg", -1))
 	hud.set_stats(time_left, score, onboard, delivered, total_passengers, bus.damage)
+	hud.set_comfort(comfort)
 
 
 func _check_off_route() -> void:
@@ -294,6 +316,56 @@ func _check_red_light() -> void:
 		hud.show_message(tr("MSG_RED_LIGHT") % RED_LIGHT_PENALTY, 2.0, Color(1.0, 0.4, 0.35))
 		AudioSynth.play("fail", -6.0, 1.15)
 		GameState.vibrate(120)
+
+
+# ---------------------------------------------------------------- passenger comfort
+## Passengers rate the ride. Braking harder than COMFORT_BRAKE_LIMIT or cornering with more
+## lateral acceleration than COMFORT_TURN_LIMIT drains the rating in proportion to the excess
+## for as long as the manoeuvre lasts (a brief dab on the brake costs almost nothing, an
+## emergency stop from 50 km/h about ten points); a collision costs a fixed chunk
+## (_on_bus_collided). Only counts with passengers on board - on the first leg the driver is
+## free to learn the bus. A manoeuvre that lasts COMFORT_EVENT_DELAY is counted once and, with
+## a cooldown, announced on the HUD with a tyre squeal.
+func _update_comfort(delta: float) -> void:
+	_comfort_msg_timer = maxf(0.0, _comfort_msg_timer - delta)
+	if state != State.DRIVING or onboard <= 0:
+		_harsh_timer = 0.0
+		_harsh_reported = false
+		return
+	var braking := -bus.accel_long if bus.speed_kmh() > COMFORT_MIN_SPEED_KMH else 0.0
+	var excess := braking - COMFORT_BRAKE_LIMIT
+	var kind := Harsh.BRAKE
+	var lateral := absf(bus.accel_lat) - COMFORT_TURN_LIMIT
+	if lateral > excess:
+		excess = lateral
+		kind = Harsh.TURN
+	if excess <= 0.0:
+		_harsh_timer = 0.0
+		_harsh_reported = false
+		return
+	comfort = maxf(0.0, comfort - excess * COMFORT_DRAIN_RATE * delta)
+	_harsh_timer += delta
+	if _harsh_timer < COMFORT_EVENT_DELAY or _harsh_reported:
+		return
+	_harsh_reported = true
+	if kind == Harsh.BRAKE:
+		harsh_brakes += 1
+	else:
+		sharp_turns += 1
+	if _comfort_msg_timer > 0.0:
+		return
+	_comfort_msg_timer = COMFORT_MSG_COOLDOWN
+	hud.show_message(tr("MSG_HARSH_BRAKE" if kind == Harsh.BRAKE else "MSG_SHARP_TURN"), 1.8, Color(1.0, 0.75, 0.45))
+	AudioSynth.play("squeal", -9.0, randf_range(0.95, 1.05) if kind == Harsh.BRAKE else randf_range(1.08, 1.18))
+	GameState.vibrate(35)
+
+
+## Comfort bonus paid at the terminal: COMFORT_BONUS_MAX for a perfectly smooth ride, scaled
+## by the rating; nothing when nobody rode along.
+func comfort_bonus() -> int:
+	if delivered <= 0:
+		return 0
+	return roundi(comfort / 100.0 * COMFORT_BONUS_MAX)
 
 
 ## Feeds the HUD the traffic light the bus is heading towards, when one is reasonably close.
@@ -470,6 +542,8 @@ func _on_bus_collided(strength: float) -> void:
 	collisions += 1
 	var penalty := mini(150, 40 + int(strength * 12.0))
 	score = maxi(0, score - penalty)
+	if onboard > 0:
+		comfort = maxf(0.0, comfort - COMFORT_COLLISION_LOSS)
 	bus.apply_damage(clampf(strength * 3.5, 4.0, 30.0))
 	camera_rig.add_shake(clampf(strength / 6.0, 0.2, 1.0))
 	hud.flash_damage()
@@ -504,7 +578,9 @@ func _finish(success: bool, title_key: String) -> void:
 		AudioSynth.play("success", -2.0)
 	else:
 		AudioSynth.play("fail", -2.0)
-	var total := score + time_bonus
+	# Smooth driving pays off once everyone has been delivered.
+	var comfort_pts := comfort_bonus() if success else 0
+	var total := score + time_bonus + comfort_pts
 	var stars := 0
 	if success:
 		stars = 1
@@ -525,6 +601,8 @@ func _finish(success: bool, title_key: String) -> void:
 		"delivered": delivered, "total_passengers": total_passengers, "stops_served": stops_served,
 		"stops_total": world.stops.size(), "collisions": collisions, "new_best": new_best,
 		"perfect_stops": perfect_stops, "red_lights": red_lights,
+		"comfort": roundi(comfort), "comfort_bonus": comfort_pts,
+		"harsh_brakes": harsh_brakes, "sharp_turns": sharp_turns,
 	}
 	await get_tree().create_timer(1.8).timeout
 	if is_inside_tree():
