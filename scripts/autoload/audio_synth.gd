@@ -22,6 +22,7 @@ func _ready() -> void:
 	sounds["success"] = _make_success()
 	sounds["fail"] = _make_fail()
 	sounds["ding"] = _make_ding()
+	sounds["squeal"] = _make_squeal()
 	sounds["engine"] = _make_engine_loop()
 	for i in POOL_SIZE:
 		var p := AudioStreamPlayer.new()
@@ -209,6 +210,26 @@ func _make_ding() -> AudioStreamWAV:
 	for i in n:
 		var t := float(i) / RATE
 		s[i] = (sin(TAU * 1760.0 * t) + 0.4 * sin(TAU * 3520.0 * t)) * exp(-t * 8.0) * 0.4
+	return _wav_from_samples(s)
+
+
+## Tyre squeal for harsh braking and fast corners: a falling high tone with a fast wobble
+## (the stick-slip chatter of a sliding tyre) over a band of hiss.
+func _make_squeal() -> AudioStreamWAV:
+	var length := 0.45
+	var n := int(RATE * length)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var phase := 0.0
+	var filtered := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var f := lerpf(1650.0, 1250.0, t / length) * (1.0 + 0.02 * sin(TAU * 38.0 * t))
+		phase += TAU * f / RATE
+		var tone := sin(phase) * 0.6 + 0.25 * sin(phase * 2.0)
+		var noise := randf_range(-1.0, 1.0)
+		filtered += (noise - filtered) * 0.35
+		s[i] = (tone * 0.7 + filtered * 0.3) * 0.5 * _env(t, 0.04, 0.18, length)
 	return _wav_from_samples(s)
 
 

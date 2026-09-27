@@ -148,7 +148,7 @@ script = ExtResource("7_stars")
 [node name="Grid" type="GridContainer" parent="ResultsLayer/ResultsPanel/Panel/VBox"]
 layout_mode = 2
 theme_override_constants/h_separation = 30
-theme_override_constants/v_separation = 2
+theme_override_constants/v_separation = 0
 columns = 2
 
 [node name="BestLabel" type="Label" parent="ResultsLayer/ResultsPanel/Panel/VBox"]

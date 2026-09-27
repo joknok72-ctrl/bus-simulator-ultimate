@@ -127,3 +127,8 @@ HOWTO_7,Follow the turn-by-turn arrow under the stop name. Stopping exactly in t
 HOWTO_8,Stop at the white line when the traffic light ahead is red; the small light beside the arrow shows its colour. Running a red light costs points and the third star.,توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء؛ المصباح الصغير بجانب السهم يعرض لونها. تجاوز الإشارة الحمراء يخصم نقاطاً ويُفقدك النجمة الثالثة.
 MSG_RED_LIGHT,Red light! -%d,تجاوزت الإشارة الحمراء! -%d
 RESULT_RED_LIGHTS,Red lights run,الإشارات الحمراء المتجاوَزة
+HUD_COMFORT,Comfort,الراحة
+MSG_HARSH_BRAKE,Harsh braking! Passengers are upset,فرملة عنيفة! الركاب مستاؤون
+MSG_SHARP_TURN,Too fast in the turn! Passengers are upset,انعطاف حاد! الركاب مستاؤون
+RESULT_COMFORT,Passenger comfort,راحة الركاب
+HOWTO_9,Drive smoothly with passengers on board: slow down early instead of braking hard and take corners slowly. A high comfort rating earns a bonus at the terminal.,قُد بسلاسة عندما يكون الركاب على متن الحافلة: خفّف السرعة مبكراً بدل الفرملة العنيفة وانعطف ببطء. تقييم الراحة العالي يمنحك مكافأة في المحطة النهائية.

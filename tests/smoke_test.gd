@@ -59,7 +59,7 @@ func _test_autoloads() -> void:
 	_check(gs != null, "GameState autoload present")
 	_check(audio != null, "AudioSynth autoload present")
 	if audio:
-		_check(audio.sounds.size() >= 9, "procedural sounds generated (%d)" % audio.sounds.size())
+		_check(audio.sounds.size() >= 10 and audio.sounds.has("squeal"), "procedural sounds generated incl. tyre squeal (%d)" % audio.sounds.size())
 	if gs:
 		_check(RouteData.all().size() == 4, "4 routes defined")
 		gs.set_setting("language", "ar")
@@ -86,7 +86,7 @@ func _test_main_menu() -> void:
 	_check(menu.get_node("UI/Root/PageRoutes/Cards").get_child_count() == 4, "4 route cards built")
 	_check(menu.get_node("UI/Root/PageGarage/Cards").get_child_count() == 6, "6 garage cards built")
 	_check(menu.get_node("UI/Root/PageSettings/Panel/Grid").get_child_count() == 18, "settings rows built (incl. steering sensitivity)")
-	_check(menu.get_node("UI/Root/PageHowTo/Panel/Lines").get_child_count() == 8, "8 how-to lines built (incl. traffic lights)")
+	_check(menu.get_node("UI/Root/PageHowTo/Panel/Lines").get_child_count() == 9, "9 how-to lines built (incl. passenger comfort)")
 	var menu_meshes: int = menu.get_node("Turntable/Bus").find_children("*", "MeshInstance3D", true, false).size()
 	_check(menu_meshes < 20, "bus geometry is merged (%d mesh instances, was ~120)" % menu_meshes)
 	var about_count: int = menu.get_node("UI/Root/PageAbout/Panel/Scroll/Lines").get_child_count()
@@ -159,12 +159,16 @@ func _test_gameplay() -> void:
 	_check(bus.is_on_floor(), "bus stays on the ground")
 	# The first light is red while the player gets going; the HUD icon shows it.
 	_check(game.hud.signal_indicator.visible and game.hud.signal_indicator.light == TrafficSignals.Light.RED, "HUD shows the red light ahead")
-	# Brake to a stop.
+	# Brake to a stop. The full pedal is an emergency stop as far as passengers are concerned,
+	# but nobody is on board yet, so the comfort rating is untouched.
 	game.hud.touch_controls.brake_pedal.press()
-	await _frames(240)
+	await _frames(40)
+	_check(bus.accel_long < -game.COMFORT_BRAKE_LIMIT, "full brake decelerates harder than standing passengers like (%.1f m/s2)" % bus.accel_long)
+	await _frames(200)
 	game.hud.touch_controls.brake_pedal.release()
 	await _frames(5)
 	_check(absf(bus.speed) < 0.5, "brake stops the bus")
+	_check(game.comfort == 100.0 and game.harsh_brakes == 0, "hard braking with nobody on board does not affect comfort")
 	# Teleport into the first stop zone and board passengers.
 	var stop = world.stops[0]
 	bus.stop_immediately()
@@ -186,23 +190,64 @@ func _test_gameplay() -> void:
 	_check(game.score > 0, "score increased (%d)" % game.score)
 	_check(game.perfect_stops == 1 and game.score == 4 * 50 + 100 + 50, "perfect stop bonus awarded (%d)" % game.score)
 	_check(game.guidance.turn == RouteGuide.Turn.RIGHT or game.guidance.turn == RouteGuide.Turn.LEFT, "guidance now points to the next corner")
-	# Traffic lights: driving the front bumper into the next crossing on red costs points -
-	# once per entry, not within the grace period after the change, never on green. The
-	# traffic cars are parked out of the way so a car in the crossing cannot add a collision.
-	var sig = world.signals
-	var route: Dictionary = RouteData.get_route("route_1")
-	var dir: Vector3 = CityLayout.seg_dir(route.path[0], route.path[1])
-	var axis: int = TrafficSignals.axis_of(dir)
-	var crossing: Vector2i = route.path[0] + Vector2i(roundi(dir.x), roundi(dir.z))
-	var lane: Vector3 = CityLayout.node_pos(crossing) + CityLayout.right_of(dir) * CityLayout.OUTER_LANE
-	var heading := Basis.looking_at(dir, Vector3.UP)
-	var outside := Transform3D(heading, lane - dir * 24.0)
-	var inside := Transform3D(heading, lane - dir * (CityLayout.CURB - 1.0 + float(bus.LENGTH) * 0.5))   # bumper 1 m in
+	# The traffic cars are parked out of the way for the comfort and traffic-light checks below,
+	# so a car cannot bump the bus and add a collision in the middle of them.
 	var parked: Array[Transform3D] = []
 	for c in world.cars:
 		parked.append(c.global_transform)
 		c.set_physics_process(false)
 		c.global_position.y = -100.0
+	var route: Dictionary = RouteData.get_route("route_1")
+	var dir: Vector3 = CityLayout.seg_dir(route.path[0], route.path[1])
+	var heading := Basis.looking_at(dir, Vector3.UP)
+	# Passenger comfort: four passengers are on board now. Same spot as the spawn, mid-block on
+	# the first street with ~45 m of straight road before the next crossing.
+	var mid_block := Transform3D(heading, CityLayout.lane_point(route.path[0], route.path[1], 0.12))
+	_check(game.comfort == 100.0 and game.hud.comfort_bar.value == 100.0, "comfort rating starts at 100 (HUD bar)")
+	# An emergency stop from 43 km/h.
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	bus.speed = 12.0
+	game.hud.touch_controls.brake_pedal.press()
+	await _frames(int(0.7 * Engine.physics_ticks_per_second))
+	game.hud.touch_controls.brake_pedal.release()
+	_check(game.harsh_brakes == 1 and game.sharp_turns == 0, "one harsh-braking event counted")
+	_check(game.hud.message_label.text == tr("MSG_HARSH_BRAKE"), "passengers complain about the braking on the HUD")
+	# Let the pedal value fall back to zero (idle frame) and the bus roll out before sampling.
+	await _frames(int(0.6 * Engine.physics_ticks_per_second))
+	var after_brake: float = game.comfort
+	_check(after_brake < 99.0 and after_brake > 85.0, "harsh braking with passengers on board costs comfort (%.1f)" % after_brake)
+	# Coasting down from the same speed on engine braking alone is fine.
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	bus.speed = 12.0
+	await _frames(int(0.5 * Engine.physics_ticks_per_second))
+	_check(bus.accel_long < 0.0 and bus.accel_long > -game.COMFORT_BRAKE_LIMIT, "coasting decelerates gently (%.1f m/s2)" % bus.accel_long)
+	_check(absf(game.comfort - after_brake) < 0.001 and game.harsh_brakes == 1, "gentle driving does not cost comfort")
+	# Full lock to the left at 43 km/h (towards the empty road, away from the kerb).
+	game._comfort_msg_timer = 0.0
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	bus.speed = 12.0
+	game.hud.touch_controls.wheel.angle = -game.hud.touch_controls.wheel.max_angle
+	game.hud.touch_controls.wheel.held = true
+	await _frames(int(1.0 * Engine.physics_ticks_per_second))
+	game.hud.touch_controls.wheel.held = false
+	_check(absf(bus.accel_lat) > game.COMFORT_TURN_LIMIT, "fast cornering pulls hard sideways (%.1f m/s2)" % bus.accel_lat)
+	_check(game.comfort < after_brake - 1.0, "sharp turn with passengers on board costs comfort (%.1f)" % game.comfort)
+	_check(game.sharp_turns == 1 and game.hud.message_label.text == tr("MSG_SHARP_TURN"), "one sharp-turn event counted and announced")
+	_check(game.hud.comfort_bar.value < 100.0, "HUD comfort bar follows the rating (%.0f)" % game.hud.comfort_bar.value)
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	await _frames(3)
+	# Traffic lights: driving the front bumper into the next crossing on red costs points -
+	# once per entry, not within the grace period after the change, never on green.
+	var sig = world.signals
+	var axis: int = TrafficSignals.axis_of(dir)
+	var crossing: Vector2i = route.path[0] + Vector2i(roundi(dir.x), roundi(dir.z))
+	var lane: Vector3 = CityLayout.node_pos(crossing) + CityLayout.right_of(dir) * CityLayout.OUTER_LANE
+	var outside := Transform3D(heading, lane - dir * 24.0)
+	var inside := Transform3D(heading, lane - dir * (CityLayout.CURB - 1.0 + float(bus.LENGTH) * 0.5))   # bumper 1 m in
 	var score_before: int = game.score
 	bus.stop_immediately()
 	bus.global_transform = outside
@@ -235,10 +280,12 @@ func _test_gameplay() -> void:
 	bus.global_transform = stop2.global_transform.translated(-stop2.global_transform.basis.z * 40.0)
 	await _frames(5)
 	_check(game.current_stop == 2 and game.missed_stops == 1, "missed stop detected")
-	# Collision handling.
+	# Collision handling (four passengers are still on board, so it also shakes them up).
 	var before_damage: float = bus.damage
+	var before_comfort: float = game.comfort
 	game._on_bus_collided(5.0)
 	_check(game.collisions == 1 and bus.damage > before_damage, "collision applies damage and penalty")
+	_check(absf(game.comfort - (before_comfort - game.COMFORT_COLLISION_LOSS)) < 0.001, "collision with passengers on board costs %d comfort points" % int(game.COMFORT_COLLISION_LOSS))
 	bus.apply_damage(60.0)
 	_check(bus.smoke.emitting, "heavy damage starts the engine smoke")
 	# Terminal completion.
@@ -252,8 +299,14 @@ func _test_gameplay() -> void:
 	_check(gs.get_route_stars("route_1") >= 1, "stars saved (%d)" % gs.get_route_stars("route_1"))
 	_check(int(gs.last_result.get("perfect_stops", -1)) == 1, "perfect stops recorded in the result")
 	_check(int(gs.last_result.get("red_lights", -1)) == 1, "red lights run recorded in the result")
+	var result: Dictionary = gs.last_result
+	_check(int(result.get("comfort", -1)) == roundi(game.comfort) and int(result.get("comfort", 100)) < 100, "comfort rating recorded in the result (%d %%)" % int(result.get("comfort", -1)))
+	var expected_bonus: int = roundi(game.comfort / 100.0 * game.COMFORT_BONUS_MAX)
+	_check(int(result.get("comfort_bonus", -1)) == expected_bonus and expected_bonus > 0, "comfort bonus scales with the rating (+%d)" % int(result.get("comfort_bonus", -1)))
+	_check(int(result.total) == int(result.score) + int(result.time_bonus) + int(result.comfort_bonus), "total = score + time bonus + comfort bonus")
 	await _frames(600)
 	_check(game.results.visible, "results panel shown")
+	_check(game.results.grid.get_child_count() == 18, "results grid lists the comfort rating (%d cells)" % game.results.grid.get_child_count())
 	game.queue_free()
 	await _frames(2)
 
