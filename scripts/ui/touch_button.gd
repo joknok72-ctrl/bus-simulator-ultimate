@@ -7,7 +7,11 @@ extends Control
 signal tapped()
 
 enum Shape { ROUND, PEDAL }
-enum Icon { NONE, HORN, DOORS, CAMERA, LEFT, RIGHT, PAUSE, GAS, BRAKE }
+enum Icon { NONE, HORN, DOORS, CAMERA, LEFT, RIGHT, PAUSE, GAS, BRAKE, SIGNAL_LEFT, SIGNAL_RIGHT }
+
+## Colour of a latched (active) button's icon while its lamp is lit / dark.
+const ACTIVE_LIT := Color(1.0, 0.72, 0.15, 1.0)
+const ACTIVE_DARK := Color(0.85, 0.55, 0.12, 0.7)
 
 @export var shape: Shape = Shape.ROUND
 @export var icon: Icon = Icon.NONE
@@ -18,6 +22,10 @@ enum Icon { NONE, HORN, DOORS, CAMERA, LEFT, RIGHT, PAUSE, GAS, BRAKE }
 
 var pressed := false
 var value := 0.0
+## Latched state shown by toggle buttons (the turn indicators): the ring and icon glow
+## amber while active, and the icon blinks with `lit`.
+var active := false
+var lit := false
 var _flash := 0.0
 
 
@@ -65,7 +73,10 @@ func _draw() -> void:
 		var r := minf(size.x, size.y) * 0.5
 		draw_circle(c, r, Color(0, 0, 0, 0.25))
 		draw_circle(c, r - 3.0, col)
-		draw_arc(c, r - 3.0, 0.0, TAU, 48, Color(1, 1, 1, 0.35 + _flash * 0.4), 2.5, true)
+		var ring := Color(1, 1, 1, 0.35 + _flash * 0.4)
+		if active:
+			ring = ACTIVE_LIT if lit else ACTIVE_DARK
+		draw_arc(c, r - 3.0, 0.0, TAU, 48, ring, 3.5 if active else 2.5, true)
 		_draw_icon(c, r * 0.5)
 	else:
 		var style := StyleBoxFlat.new()
@@ -94,7 +105,14 @@ func _draw() -> void:
 
 func _draw_icon(c: Vector2, s: float) -> void:
 	var ic := accent_color
+	if active:
+		ic = ACTIVE_LIT if lit else ACTIVE_DARK
 	match icon:
+		Icon.SIGNAL_LEFT, Icon.SIGNAL_RIGHT:
+			# Turn-signal arrow: triangular head with a short shaft, pointing to the side.
+			var d := -1.0 if icon == Icon.SIGNAL_LEFT else 1.0
+			draw_colored_polygon(PackedVector2Array([c + Vector2(d * s * 1.15, 0), c + Vector2(d * s * 0.05, -s * 0.9), c + Vector2(d * s * 0.05, s * 0.9)]), ic)
+			draw_rect(Rect2(c + Vector2(minf(d * s * 0.05, -d * s * 0.8), -s * 0.38), Vector2(s * 0.85, s * 0.76)), ic)
 		Icon.HORN:
 			# Trumpet body and sound waves.
 			var pts := PackedVector2Array([c + Vector2(-s, -s * 0.3), c + Vector2(-s * 0.1, -s * 0.3), c + Vector2(s * 0.45, -s * 0.85), c + Vector2(s * 0.45, s * 0.85), c + Vector2(-s * 0.1, s * 0.3), c + Vector2(-s, s * 0.3)])

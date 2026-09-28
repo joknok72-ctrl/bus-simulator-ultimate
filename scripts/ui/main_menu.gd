@@ -18,7 +18,7 @@ extends Node3D
 @onready var route_cards: HBoxContainer = $UI/Root/PageRoutes/Cards
 @onready var garage_cards: HBoxContainer = $UI/Root/PageGarage/Cards
 @onready var settings_grid: GridContainer = $UI/Root/PageSettings/Panel/Grid
-@onready var howto_lines: VBoxContainer = $UI/Root/PageHowTo/Panel/Lines
+@onready var howto_lines: VBoxContainer = $UI/Root/PageHowTo/Panel/Scroll/Lines
 
 ## The turntable, ground and platform sit low on the home page so the bus stays clear of the
 ## title; on the card pages (routes, garage) the whole stage is lifted so the bus shows
@@ -319,7 +319,7 @@ func _add_setting(title: String, value: String, on_pressed: Callable, danger: bo
 func _build_howto() -> void:
 	for child in howto_lines.get_children():
 		child.queue_free()
-	for i in range(1, 10):
+	for i in range(1, 11):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
 		var num := Label.new()

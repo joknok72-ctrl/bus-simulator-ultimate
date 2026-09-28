@@ -26,12 +26,13 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 
 | | |
 |---|---|
-| ![Driver seat – cockpit view](docs/screenshots/10_game_driver_camera.png) | ![Driver seat – turning, wheel and body roll](docs/screenshots/13_game_driver_turning.png) |
+| ![Driver seat – cockpit view](docs/screenshots/10_game_driver_camera.png) | ![Driver seat – turning with the left indicator on: wheel, body roll and tell-tales](docs/screenshots/13_game_driver_turning.png) |
 | ![Driving – chase camera](docs/screenshots/09_game_driving_chase.png) | ![Night route from the driver seat](docs/screenshots/12_game_night_route.png) |
 | ![Bus stop – boarding (chase)](docs/screenshots/11_game_bus_stop_boarding.png) | ![Bus stop – doors open (driver seat)](docs/screenshots/15_game_driver_at_stop.png) |
-| ![Turn-by-turn guidance before a corner](docs/screenshots/16_game_turn_guidance.png) | ![Engine smoke after heavy damage](docs/screenshots/17_game_damage_smoke.png) |
-| ![High view](docs/screenshots/14_game_top_camera.png) | ![Main menu (English)](docs/screenshots/01_menu_home_en.png) |
-| ![القائمة الرئيسية (عربي)](docs/screenshots/07_menu_home_ar.png) | ![Route selection](docs/screenshots/02_menu_routes.png) |
+| ![Turn-by-turn guidance before a corner](docs/screenshots/16_game_turn_guidance.png) | ![Turn indicator on before the corner – amber lamps, stalk button and gauge tell-tale](docs/screenshots/18_game_turn_indicator.png) |
+| ![Engine smoke after heavy damage](docs/screenshots/17_game_damage_smoke.png) | ![High view](docs/screenshots/14_game_top_camera.png) |
+| ![Main menu (English)](docs/screenshots/01_menu_home_en.png) | ![القائمة الرئيسية (عربي)](docs/screenshots/07_menu_home_ar.png) |
+| ![Route selection](docs/screenshots/02_menu_routes.png) | ![How to play](docs/screenshots/05_menu_howto.png) |
 
 اللقطات مأخوذة من المحرّك 4.7.2-stable نفسه (`tools/screenshot.gd` تحت Xvfb + Mesa). / Captured from the real engine build
 (`tools/screenshot.gd` under Xvfb + Mesa software OpenGL).
@@ -47,11 +48,12 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 5. [بناء APK لأندرويد | Build the Android APK](#بناء-apk-لأندرويد--build-the-android-apk)
 6. [التحقق والاختبارات | Validation & tests](#التحقق-والاختبارات--validation--tests)
 7. [بنية المشروع | Project structure](#بنية-المشروع--project-structure)
-8. [ما الجديد في 1.4.0 | What's new in 1.4.0](#ما-الجديد-في-140--whats-new-in-140)
-9. [ما الجديد في 1.3.0 | What's new in 1.3.0](#ما-الجديد-في-130--whats-new-in-130)
-10. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
-11. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
-12. [الرخص | Licenses](#الرخص--licenses)
+8. [ما الجديد في 1.5.0 | What's new in 1.5.0](#ما-الجديد-في-150--whats-new-in-150)
+9. [ما الجديد في 1.4.0 | What's new in 1.4.0](#ما-الجديد-في-140--whats-new-in-140)
+10. [ما الجديد في 1.3.0 | What's new in 1.3.0](#ما-الجديد-في-130--whats-new-in-130)
+11. [ما الجديد في 1.2.0 | What's new in 1.2.0](#ما-الجديد-في-120--whats-new-in-120)
+12. [ما الجديد في 1.1.0 | What's new in 1.1.0](#ما-الجديد-في-110--whats-new-in-110)
+13. [الرخص | Licenses](#الرخص--licenses)
 
 ---
 
@@ -71,11 +73,12 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | إرشاد انعطاف بانعطاف: سطر في أعلى الشاشة (انعطف يميناً بعد 45 م / المحطة بعد 30 م) وسهم ثلاثي الأبعاد يتبع مسار الخط (المنعطف التالي) بدل الإشارة عبر المباني، وتحذير عند الخروج عن الخط، وتعتيم الجزء المقطوع من الخط على الخريطة | Turn-by-turn guidance: a HUD line (Turn right in 45 m / Bus stop in 30 m), a 3D arrow that follows the route (next corner) instead of pointing through buildings, an off-route warning, and the driven part of the route dimmed on the minimap |
 | مكافأة "توقّف مثالي" (+50) عند التوقف في منتصف منطقة المحطة بمحاذاة الرصيف؛ تُعدّ في شاشة النتائج | "Perfect stop" bonus (+50) for stopping centred in the zone and parallel to the kerb; counted on the results screen |
 | راحة الركاب: مع وجود ركاب على متن الحافلة تُخفض الفرملة العنيفة والانعطاف السريع والتصادمات تقييم الراحة (شريط أخضر في لوحة الإحصاءات يتحوّل إلى أصفر ثم أحمر) مع تحذير وصرير إطارات؛ التقييم يمنح مكافأة تصل إلى +200 في المحطة النهائية | Passenger comfort: with passengers on board harsh braking, fast cornering and collisions lower a comfort rating (a green bar in the stats panel that turns amber, then red) with a warning and a tyre squeal; the rating pays a bonus of up to +200 at the terminal |
+| إشارات الانعطاف (الغمّازات): زرّان كهرمانيان فوق المقود (أو `Z` / `X`) يشغّلان غمّاز اليسار/اليمين؛ مصابيح كهرمانية في مقدمة الحافلة ومؤخرتها وجانبيها تومض كل 0.8 ث مع طقطقة المرحّل، ومؤشران أخضران في عدّاد السرعة وفي لوحة القمرة؛ تنطفئ الإشارة تلقائياً بعد المنعطف كما في السيارة الحقيقية. كل منعطف يُقيَّم مرة واحدة: مع الإشارة الصحيحة +20، وبدونها أو بالإشارة الخطأ −20، ويُعرض عدد المنعطفات المُشار إليها في شاشة النتائج | Turn indicators: two amber stalk buttons above the steering wheel (or `Z` / `X`) switch the left/right indicator on; amber lamps at the front, rear and flanks of the bus flash every 0.8 s with a relay tick, green tell-tales light up in the speedometer and on the cockpit binnacle, and the indicator cancels itself after the corner like a real stalk. Every corner is judged once: +20 with the right indicator, −20 without one (or with the wrong side); indicated corners are listed on the results screen |
 | خريطة صغيرة، عدّاد سرعة، مؤقّت | Minimap, speedometer, timer |
 | أداء للهواتف: كل الهندسة الثابتة (الحافلة، المدينة، الطرق، المحطات، الإشارات، السيارات، الركاب) تُدمج في شبكات قليلة — نداءات الرسم أقل بنحو 57% (865 → 368 في الخط الأول، مع إشارات المرور) | Phone performance: all static geometry (bus, city, roads, stops, signals, cars, passengers) is baked into a few meshes — about 57% fewer draw calls (865 → 368 on route 1, traffic lights included) |
 | واجهة تحترم منطقة الأمان (فتحة الكاميرا/الحواف المستديرة) على أندرويد | HUD respects the display safe area (camera cutout / rounded corners) on Android |
 | دخان من المحرك عند تلف شديد | Engine smoke when the bus is badly damaged |
-| أصوات مولّدة برمجياً (محرك، بوق، أبواب، نقر) واهتزاز | Procedural audio (engine, horn, doors, clicks) and vibration |
+| أصوات مولّدة برمجياً (محرك، بوق، أبواب، نقر، صرير إطارات، طقطقة الغمّاز) واهتزاز | Procedural audio (engine, horn, doors, clicks, tyre squeal, indicator relay) and vibration |
 | عربي/إنجليزي مع اتجاه واجهة تلقائي (RTL) | Arabic/English with automatic RTL layout |
 | إعدادات: طريقة التحكم، الكاميرا، الجودة، الصوت، الاهتزاز، حساسية التوجيه (منخفضة/عادية/عالية)، عكس الإمالة | Settings: control mode, camera, quality, sound, vibration, steering sensitivity (low/normal/high), invert tilt |
 | صفحة "حول اللعبة والرخص" تعرض رخصة Godot ومكوّناتها الخارجية وخط Cairo | "About & licenses" page showing the Godot license, its third-party components and the Cairo font notice |
@@ -84,9 +87,9 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 
 ## طريقة اللعب والتحكم | Gameplay & controls
 
-**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء — المصباح الصغير بجانب سهم الإرشاد يعرض لونها. التصادم أو تجاوز السرعة أو تجاوز إشارة حمراء (−100) أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت. ومع وجود ركاب على متن الحافلة قُد بسلاسة: خفّف السرعة مبكراً بدل الفرملة العنيفة وانعطف ببطء، فشريط "الراحة" يمنحك مكافأة تصل إلى +200 في المحطة النهائية.
+**الهدف:** انطلق من المحطة الأولى، توقّف عند كل محطة على الخط (اتبع سطر الإرشاد أعلى الشاشة: "انعطف يميناً بعد 45 م" / "المحطة بعد 30 م"، والسهم الأخضر، والخريطة)، افتح الأبواب لصعود الركاب، ثم أنهِ الخط قبل انتهاء الوقت. التوقف في منتصف المنطقة الصفراء بمحاذاة الرصيف يمنحك "توقّفاً مثالياً" (+50). توقّف عند الخط الأبيض عندما تكون إشارة المرور أمامك حمراء — المصباح الصغير بجانب سهم الإرشاد يعرض لونها. التصادم أو تجاوز السرعة أو تجاوز إشارة حمراء (−100) أو تفويت محطة أو الخروج عن الخط يُخفض النتيجة أو يضيّع الوقت. ومع وجود ركاب على متن الحافلة قُد بسلاسة: خفّف السرعة مبكراً بدل الفرملة العنيفة وانعطف ببطء، فشريط "الراحة" يمنحك مكافأة تصل إلى +200 في المحطة النهائية. وشغّل الغمّاز قبل كل منعطف (الزرّان الكهرمانيان فوق المقود): المنعطف مع الإشارة يمنحك +20 وبدونها تُخصم 20 نقطة.
 
-**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Stop at the white line when the traffic light ahead is red — the small lamp beside the guidance arrow shows its colour. Collisions, speeding, running a red light (−100), missed stops and leaving the route cost score or time. With passengers on board, drive smoothly: slow down early instead of braking hard and take corners slowly — the "Comfort" bar pays a bonus of up to +200 at the terminal.
+**Goal:** start at the first stop, stop at every bus stop on the route (follow the guidance line at the top: "Turn right in 45 m" / "Bus stop in 30 m", the green arrow and the minimap), open the doors so passengers can board, and finish the route before the timer runs out. Stopping centred in the yellow zone and parallel to the kerb earns a "perfect stop" (+50). Stop at the white line when the traffic light ahead is red — the small lamp beside the guidance arrow shows its colour. Collisions, speeding, running a red light (−100), missed stops and leaving the route cost score or time. With passengers on board, drive smoothly: slow down early instead of braking hard and take corners slowly — the "Comfort" bar pays a bonus of up to +200 at the terminal. Switch on the turn indicator before every corner (the amber buttons above the wheel): an indicated corner earns +20, one without a signal costs 20.
 
 | التحكم على الهاتف | Touch | لوحة المفاتيح (للتجربة على الحاسوب) | Keyboard (desktop testing) |
 |---|---|---|---|
@@ -95,6 +98,7 @@ The APK is built automatically by GitHub Actions (`.github/workflows/build-cityb
 | دوّاسة المكابح | Brake pedal | `S` / `↓` / `Space` | `S` / `↓` / `Space` |
 | زر الأبواب | Doors button | `E` | `E` |
 | زر البوق | Horn button | `H` | `H` |
+| زرّا الغمّاز يسار/يمين (فوق المقود؛ الضغط مجدداً يطفئه) | Turn indicator left/right buttons (above the wheel; tap again to cancel) | `Z` / `X` | `Z` / `X` |
 | زر الكاميرا | Camera button | `C` | `C` |
 | زر الإيقاف المؤقت | Pause button | `Esc` / `P` | `Esc` / `P` |
 
@@ -151,17 +155,19 @@ Short version (Linux, after preparing JDK 17 and the Android SDK as in `docs/AND
 `sh tools/build_android.sh`. It fetches the official Android templates if missing, imports the project and exports
 `build/CityBusDriver-debug.apk`; pass `RELEASE_KEYSTORE`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASS` to also export a signed
 release APK. The Android preset (`export_presets.cfg`) targets **arm64-v8a**, package `com.khaled.citybusdriver`,
-version `1.4.0` (code 5), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
+version `1.5.0` (code 6), landscape, immersive mode, `VIBRATE` permission, adaptive launcher icons.
 
 ---
 
 ## التحقق والاختبارات | Validation & tests
 
-`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (150 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، راحة الركاب (الفرملة العنيفة والانعطاف الحاد والتصادم مع ركاب تُخفض التقييم، والقيادة الهادئة أو بلا ركاب لا تؤثر، والمكافأة في النتيجة)، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، إشارات المرور: دورة الأطوار، هندسة التقاطعات والإشارات المدمجة، توقّف السيارات عند الخط الأحمر وانطلاقها عند الأخضر، عقوبة تجاوز الإشارة الحمراء مرة واحدة لكل تقاطع مع فترة السماح، ابتعاد المحطات ونقطة الانطلاق والمحطة النهائية عن التقاطعات، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
+`tools/validate.sh` يشغّل بالمحرّك 4.7.2-stable: الاستيراد، ثم اختبار الدخان `tests/smoke_test.gd` (167 فحصاً: الترجمات، صفحات القائمة، توليد المدينة ودمج الهندسة، الخطوط الأربعة، القيادة والكبح، المحطات وصعود الركاب والتوقف المثالي، إشارات الانعطاف (تشغيلها من الأزرار وتبديلها وإطفاؤها، الوميض، مؤشرات الواجهة، مكافأة المنعطف المُشار إليه وعقوبة المنعطف بدونها وفترة السماح، الإطفاء التلقائي بعد المنعطف، العدّادات في النتيجة)، راحة الركاب (الفرملة العنيفة والانعطاف الحاد والتصادم مع ركاب تُخفض التقييم، والقيادة الهادئة أو بلا ركاب لا تؤثر، والمكافأة في النتيجة)، التصادمات والدخان، إرشاد الانعطاف والخروج عن الخط، تنازل سيارات المرور للحافلة، إشارات المرور: دورة الأطوار، هندسة التقاطعات والإشارات المدمجة، توقّف السيارات عند الخط الأحمر وانطلاقها عند الأخضر، عقوبة تجاوز الإشارة الحمراء مرة واحدة لكل تقاطع مع فترة السماح، ابتعاد المحطات ونقطة الانطلاق والمحطة النهائية عن التقاطعات، حساسية التوجيه، إنهاء الخط والنتيجة، وكاميرا السائق/التتبّع)، ثم إقلاع المشهد الرئيسي بلا واجهة رسومية.
 
 `tools/validate.sh` runs, with Godot 4.7.2-stable: the import, the headless smoke test `tests/smoke_test.gd`
-(150 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
-and the perfect-stop bonus, passenger comfort — harsh braking, a sharp turn and a collision with passengers on board lower
+(167 checks: translations, menu pages, city generation and mesh merging, all four routes, driving/braking, stops, boarding
+and the perfect-stop bonus, turn indicators — stalk buttons switching, taking over and cancelling, the flash cycle, the HUD
+stalk buttons and gauge tell-tales, the bonus for an indicated corner, the penalty for an unsignalled one and the grace
+after an early cancel, self-cancelling after the turn, the counters in the result — passenger comfort — harsh braking, a sharp turn and a collision with passengers on board lower
 the rating, gentle driving or an empty bus does not, the bonus is part of the result — collisions and damage smoke, turn-by-turn guidance and off-route detection, traffic yielding
 to the bus, traffic lights — phase cycle, crossing geometry and the baked signal mesh, cars stopping at a red line and
 driving on at green, the red-light penalty charged once per crossing with its grace period, stops / spawn / terminal kept
@@ -174,10 +180,10 @@ GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 sh tools/validate.sh
 
 يشغّل GitHub Actions السكربت نفسه قبل تصدير الـ APK ويعرض النتيجة في ملخّص التشغيل. / GitHub Actions runs the same script before exporting the APK and shows the result in the run summary.
 
-آخر نتيجة مسجّلة (2026-09-27، Godot 4.7.2.stable.official، الإصدار 1.4.0) / last recorded result:
-`import errors = 0` · `150 checks, 0 failures – SMOKE TEST OK` · `boot exit 0`. ملف [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) والـ APK المحفوظ في المستودع يصفان بناء 1.2.0؛ يُنشر APK الإصدار 1.4.0 عبر GitHub Actions عند الدفع إلى `main`. / [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and the committed APK still describe the 1.2.0 build; the 1.4.0 APK is published by GitHub Actions on the next push to `main`.
+آخر نتيجة مسجّلة (2026-09-28، Godot 4.7.2.stable.official، الإصدار 1.5.0) / last recorded result:
+`import errors = 0` · `167 checks, 0 failures – SMOKE TEST OK` · `boot exit 0`. ملف [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) والـ APK المحفوظ في المستودع يصفان بناء 1.2.0؛ يُنشر APK الإصدار 1.5.0 عبر GitHub Actions عند الدفع إلى `main`. / [`build/BUILD_INFO.txt`](build/BUILD_INFO.txt) and the committed APK still describe the 1.2.0 build; the 1.5.0 APK is published by GitHub Actions on the next push to `main`.
 
-`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: 372 نداء رسم و47 MeshInstance3D (368 في 1.3.0 — الأربعة الإضافية هي صفّ "الراحة" في لوحة الإحصاءات؛ 354 و46 في 1.2.0؛ كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: 372 draw calls, 47 MeshInstance3D (368 in 1.3.0 — the four extra are the "Comfort" row of the stats panel; 354 / 46 in 1.2.0; 865 / 587 before mesh merging):
+`tools/perf_probe.gd` يطبع عدد نداءات الرسم والعناصر لكل كاميرا (يحتاج شاشة أو Xvfb) — النتيجة الحالية للخط الأول بكاميرا التتبّع: نحو 400 نداء رسم (398–403 في تشغيلين؛ المِجَسّ يقود الحافلة ثانية كاملة فيتغيّر ما يظهر في الصورة قليلاً) و47 MeshInstance3D (372 في 1.4.0 — الإضافية هي زرّا الغمّاز ومؤشرا العدّاد في الواجهة وأربعة سطوح على الحافلة: مصباحا الغمّاز ومؤشرا لوحة القمرة الأخضران؛ 354 و46 في 1.2.0؛ كانت 865 و587 قبل دمج الهندسة). / `tools/perf_probe.gd` prints draw calls / objects per camera (needs a display or Xvfb); route 1 chase view now: ~400 draw calls (398–403 over two runs; the probe drives the bus for a second, so the visible set varies a little), 47 MeshInstance3D (372 in 1.4.0 — the extra ones are the two indicator stalk buttons and the gauge tell-tales on the HUD plus four surfaces on the bus: the two amber indicator lamp materials and the two green cockpit tell-tales; 354 / 46 in 1.2.0; 865 / 587 before mesh merging):
 `xvfb-run -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 --resolution 1280x720 -s res://tools/perf_probe.gd`
 
 `tools/screenshot.gd` يلتقط لقطات حقيقية من اللعبة (يحتاج شاشة أو Xvfb):
@@ -215,6 +221,18 @@ build/                   مخرجات البناء: CityBusDriver-debug.apk, BUI
 ```
 
 ---
+
+## ما الجديد في 1.5.0 | What's new in 1.5.0
+
+**إشارات الانعطاف (الغمّازات)** — صار للحافلة غمّازات حقيقية: زرّان كهرمانيان فوق المقود (أو `Z` / `X` على الحاسوب) يعملان كذراع الغمّاز — ضغطة تشغّل جهة، الضغطة على الجهة الأخرى تبدّل، والضغطة على الجهة نفسها تطفئ. مصابيح كهرمانية في مقدمة الحافلة ومؤخرتها وعلى جانبيها (خلف العجلة الأمامية) تومض كل 0.8 ث مع طقطقة مرحّل مولّدة برمجياً، والزر نفسه يومض معها، ومؤشران أخضران في عدّاد السرعة (بجانب حرف الترس) وعلى لوحة العدادات داخل القمرة. تنطفئ الإشارة من تلقاء نفسها بعد المنعطف: متى ما دارت الحافلة 60° نحو الجهة المُشار إليها وعاد المقود إلى الاستقامة.
+
+**تقييم المنعطفات** — كل منعطف (تغيّر اتجاه 50° أثناء السير إلى الأمام — تغيير المسار نحو 10° لا يُحسب، والانتقال الآني أو التصادم لا يُحسبان لأن الزاوية تُجمع من معدّل دوران الحافلة) يُقيَّم مرة واحدة: الغمّاز مشغّل نحو جهة المنعطف — أو أُطفئ قبل أقل من ثانيتين، لأن الذراع تطفئه بعد المنعطف — يمنح +20 نقطة مع رسالة، وبدونه أو بالجهة الخطأ تُخصم 20 نقطة مع تنبيه واهتزاز. شاشة النتائج تعرض "الانعطافات مع الإشارة 5 / 6"، وصفحة "كيف تلعب" تشرح الميزة (10 أسطر الآن داخل لوحة قابلة للتمرير بدل التمدّد خلف زر الرجوع).
+
+**Turn indicators** — the bus has real indicators now: two amber stalk buttons above the steering wheel (or `Z` / `X` on desktop) work like the stalk — a tap switches one side on, the other side takes over, the same side again cancels. Amber lamps at the front and rear corners and on both flanks (behind the front wheel arch) flash every 0.8 s with a procedurally generated relay tick, the button blinks with them, and green tell-tales light up in the speedometer (beside the gear letter) and on the cockpit binnacle. The indicator cancels itself after the corner: once the bus has turned 60° towards the indicated side and the wheel is back to straight ahead.
+
+**Turn judgement** — every corner (a heading change of 50° while driving forwards — a lane change is ~10° and does not count; teleports and collisions do not either, since the angle is summed from the bus's yaw rate) is judged once: the indicator on for the side of the turn — or switched off less than two seconds ago, because the stalk cancels itself after the turn — earns +20 with a message; no indicator or the wrong side costs 20 with a warning and a vibration. The results screen lists "Indicated turns 5 / 6", and the how-to page explains the feature (10 lines, now inside a scrolling panel instead of growing behind the Back button).
+
+Validation: `tests/smoke_test.gd` grew from 150 to 167 checks (stalk buttons, flashing, HUD tell-tales, indicated / unsignalled / early-cancelled corners, self-cancelling, the counters in the result, the relay sound, the how-to page). Draw calls on route 1: 372 → ~400 (two HUD stalk buttons, the gauge tell-tales, two lamp surfaces and two cockpit tell-tale surfaces on the bus); no new mesh instances. Screenshots: how-to page, driver-seat turning and corner guidance refreshed, `18_game_turn_indicator.png` added. Version 1.5.0 (Android `versionCode` 6).
 
 ## ما الجديد في 1.4.0 | What's new in 1.4.0
 

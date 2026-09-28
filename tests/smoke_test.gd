@@ -11,6 +11,11 @@ const STATE_FINISHED := 4
 const CAM_CHASE := 0
 const CAM_DRIVER := 1
 const CAM_TOP := 2
+# Bus.Indicator (the test must not name the Bus class: in -s mode it would be compiled before
+# the autoloads it depends on exist).
+const IND_NONE := 0
+const IND_LEFT := 1
+const IND_RIGHT := 2
 
 var _failures := 0
 var _checks := 0
@@ -59,7 +64,7 @@ func _test_autoloads() -> void:
 	_check(gs != null, "GameState autoload present")
 	_check(audio != null, "AudioSynth autoload present")
 	if audio:
-		_check(audio.sounds.size() >= 10 and audio.sounds.has("squeal"), "procedural sounds generated incl. tyre squeal (%d)" % audio.sounds.size())
+		_check(audio.sounds.size() >= 11 and audio.sounds.has("squeal") and audio.sounds.has("relay"), "procedural sounds generated incl. tyre squeal and indicator relay (%d)" % audio.sounds.size())
 	if gs:
 		_check(RouteData.all().size() == 4, "4 routes defined")
 		gs.set_setting("language", "ar")
@@ -86,7 +91,7 @@ func _test_main_menu() -> void:
 	_check(menu.get_node("UI/Root/PageRoutes/Cards").get_child_count() == 4, "4 route cards built")
 	_check(menu.get_node("UI/Root/PageGarage/Cards").get_child_count() == 6, "6 garage cards built")
 	_check(menu.get_node("UI/Root/PageSettings/Panel/Grid").get_child_count() == 18, "settings rows built (incl. steering sensitivity)")
-	_check(menu.get_node("UI/Root/PageHowTo/Panel/Lines").get_child_count() == 9, "9 how-to lines built (incl. passenger comfort)")
+	_check(menu.get_node("UI/Root/PageHowTo/Panel/Scroll/Lines").get_child_count() == 10, "10 how-to lines built (incl. turn indicators) in a scrolling panel")
 	var menu_meshes: int = menu.get_node("Turntable/Bus").find_children("*", "MeshInstance3D", true, false).size()
 	_check(menu_meshes < 20, "bus geometry is merged (%d mesh instances, was ~120)" % menu_meshes)
 	var about_count: int = menu.get_node("UI/Root/PageAbout/Panel/Scroll/Lines").get_child_count()
@@ -240,6 +245,70 @@ func _test_gameplay() -> void:
 	bus.stop_immediately()
 	bus.global_transform = mid_block
 	await _frames(3)
+	# Turn indicators: the stalk buttons latch, the amber lamps flash at the relay rate and the
+	# HUD mirrors them; every corner is judged once against the indicator.
+	var tc = game.hud.touch_controls
+	_check(bus.indicator == IND_NONE and not bus.indicator_lit and bus.indicator_mats.size() == 2 and bus.telltale_mats.size() == 2 and bus.indicator_mats[0].emission_energy_multiplier == 0.0 and bus.telltale_mats[0].emission_energy_multiplier == 0.0, "indicators off on a fresh bus (2 lamp + 2 tell-tale materials)")
+	tc.indicator_left.press()
+	tc.indicator_left.release()
+	_check(bus.indicator == IND_LEFT and bus.indicator_lit, "left stalk button switches the left indicator on, lit at once")
+	_check(bus.indicator_mats[0].emission_energy_multiplier > 2.0 and bus.indicator_mats[1].emission_energy_multiplier == 0.0 and bus.telltale_mats[0].emission_energy_multiplier > 0.0 and bus.telltale_mats[1].emission_energy_multiplier == 0.0, "left lamps and cockpit tell-tale glow, right side stays dark")
+	await _frames(int(0.5 * Engine.physics_ticks_per_second))   # second (dark) half of the 0.8 s cycle
+	_check(bus.indicator == IND_LEFT and not bus.indicator_lit and bus.indicator_mats[0].emission_energy_multiplier == 0.0 and bus.telltale_mats[0].emission_energy_multiplier == 0.0, "lamps and tell-tale flash off in the second half of the cycle")
+	await process_frame
+	_check(tc.indicator_left.active and not tc.indicator_left.lit and not tc.indicator_right.active, "HUD stalk button latched (dark phase)")
+	_check(game.hud.speedometer.indicator == IND_LEFT and not game.hud.speedometer.indicator_lit, "speedometer tell-tale follows the indicator")
+	tc.indicator_right.press()
+	tc.indicator_right.release()
+	_check(bus.indicator == IND_RIGHT and bus.indicator_lit and bus.last_indicator == IND_LEFT and bus.indicator_off_time < 0.01, "right stalk takes over from the left indicator")
+	tc.indicator_right.press()
+	tc.indicator_right.release()
+	_check(bus.indicator == IND_NONE and not bus.indicator_lit and bus.indicator_mats[1].emission_energy_multiplier == 0.0, "same side again switches the indicator off")
+	# A left corner (~65 deg at 32 km/h) with the left indicator on: judged at SIGNAL_TURN_YAW with
+	# the bonus, and the indicator cancels itself once the bus has turned and the wheel is straight.
+	game._comfort_msg_timer = 10.0   # keep the passengers' complaints off the message line
+	var score_signal: int = game.score
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	bus.speed = 9.0
+	tc.indicator_left.press()
+	tc.indicator_left.release()
+	tc.wheel.angle = -tc.wheel.max_angle
+	tc.wheel.held = true
+	await _frames(int(2.1 * Engine.physics_ticks_per_second))
+	tc.wheel.held = false
+	_check(game.signalled_turns == 1 and game.unsignalled_turns == 0 and game.score == score_signal + game.SIGNAL_BONUS, "indicated left corner earns the signal bonus (+%d)" % game.SIGNAL_BONUS)
+	_check(game.hud.message_label.text == tr("MSG_SIGNALLED_TURN") % game.SIGNAL_BONUS, "HUD announces the indicated turn")
+	_check(bus.indicator == IND_LEFT, "indicator still on while the wheel is turned")
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	await _frames(int(0.8 * Engine.physics_ticks_per_second))   # wheel springs back to centre
+	_check(bus.indicator == IND_NONE and bus.last_indicator == IND_LEFT, "indicator cancels itself after the corner")
+	await _frames(int(2.0 * Engine.physics_ticks_per_second))   # standing still ends the manoeuvre
+	# The same corner without an indicator costs points.
+	bus.speed = 9.0
+	tc.wheel.angle = -tc.wheel.max_angle
+	tc.wheel.held = true
+	await _frames(int(2.1 * Engine.physics_ticks_per_second))
+	tc.wheel.held = false
+	_check(game.unsignalled_turns == 1 and game.signalled_turns == 1 and game.score == score_signal, "corner without a signal costs the penalty (-%d)" % game.SIGNAL_PENALTY)
+	_check(game.hud.message_label.text == tr("MSG_NO_SIGNAL") % game.SIGNAL_PENALTY, "HUD points out the missing turn signal")
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	await _frames(int(2.0 * Engine.physics_ticks_per_second))
+	# An indicator switched off moments before the corner (the stalk knocked back early) still counts.
+	bus.speed = 9.0
+	bus.set_indicator(IND_LEFT)
+	bus.set_indicator(IND_NONE)
+	tc.wheel.angle = -tc.wheel.max_angle
+	tc.wheel.held = true
+	await _frames(int(2.1 * Engine.physics_ticks_per_second))
+	tc.wheel.held = false
+	_check(game.signalled_turns == 2 and game.unsignalled_turns == 1 and game.score == score_signal + game.SIGNAL_BONUS, "indicator cancelled just before the corner still counts (off for %.1f s)" % bus.indicator_off_time)
+	bus.stop_immediately()
+	bus.global_transform = mid_block
+	game._comfort_msg_timer = 0.0
+	await _frames(int(1.2 * Engine.physics_ticks_per_second))
 	# Traffic lights: driving the front bumper into the next crossing on red costs points -
 	# once per entry, not within the grace period after the change, never on green.
 	var sig = world.signals
@@ -292,6 +361,7 @@ func _test_gameplay() -> void:
 	game.current_stop = world.stops.size()
 	game._update_stop_targets()
 	bus.stop_immediately()
+	bus.set_indicator(IND_RIGHT)   # left flashing: finishing must switch it off
 	bus.global_transform = world.terminal.global_transform
 	await _frames(10)
 	_check(game.state == STATE_FINISHED, "route finished at terminal")
@@ -304,9 +374,11 @@ func _test_gameplay() -> void:
 	var expected_bonus: int = roundi(game.comfort / 100.0 * game.COMFORT_BONUS_MAX)
 	_check(int(result.get("comfort_bonus", -1)) == expected_bonus and expected_bonus > 0, "comfort bonus scales with the rating (+%d)" % int(result.get("comfort_bonus", -1)))
 	_check(int(result.total) == int(result.score) + int(result.time_bonus) + int(result.comfort_bonus), "total = score + time bonus + comfort bonus")
+	_check(int(result.get("signalled_turns", -1)) == 2 and int(result.get("unsignalled_turns", -1)) == 1, "indicated / unsignalled corners recorded in the result")
+	_check(bus.indicator == IND_NONE, "indicator switched off at the terminal")
 	await _frames(600)
 	_check(game.results.visible, "results panel shown")
-	_check(game.results.grid.get_child_count() == 18, "results grid lists the comfort rating (%d cells)" % game.results.grid.get_child_count())
+	_check(game.results.grid.get_child_count() == 20, "results grid lists comfort and indicated turns (%d cells)" % game.results.grid.get_child_count())
 	game.queue_free()
 	await _frames(2)
 

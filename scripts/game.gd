@@ -1,7 +1,7 @@
 extends Node3D
 ## Mission controller for a bus route: builds the city, spawns the bus, runs the
 ## stop/boarding state machine, scoring, timer, collisions, traffic-light violations,
-## the passenger comfort rating and the results screen.
+## the passenger comfort rating, turn-signal discipline and the results screen.
 
 enum State { COUNTDOWN, DRIVING, BOARDING, WAIT_CLOSE, FINISHED }
 enum Harsh { NONE, BRAKE, TURN }
@@ -26,6 +26,16 @@ const COMFORT_EVENT_DELAY := 0.3       # seconds a harsh manoeuvre must last bef
 const COMFORT_MSG_COOLDOWN := 4.0      # seconds between two complaints on the HUD
 const COMFORT_MIN_SPEED_KMH := 8.0     # braking below this speed is just a normal stop
 const COMFORT_BONUS_MAX := 200         # points for a 100 % comfort rating at the terminal
+## Turn signals: a corner is a heading change of SIGNAL_TURN_YAW while driving forwards (a
+## lane change is ~10°, a street corner 90°). It is judged once, when that angle is reached:
+## indicated towards the side of the turn earns SIGNAL_BONUS, otherwise SIGNAL_PENALTY.
+const SIGNAL_TURN_YAW := deg_to_rad(50.0)
+const SIGNAL_BONUS := 20
+const SIGNAL_PENALTY := 20
+const SIGNAL_GRACE := 2.0              # an indicator switched off this recently still counts
+const SIGNAL_STRAIGHT_TIME := 1.0      # driving straight (or standing) this long ends the turn
+const SIGNAL_STRAIGHT_STEER := deg_to_rad(2.0)
+const SIGNAL_COUNTER_YAW := deg_to_rad(8.0)   # yaw against the turn that starts a new manoeuvre
 const BOARDING_INTERVAL := 0.6
 const CAMERA_NAMES: Array[String] = ["CAM_CHASE", "CAM_DRIVER", "CAM_TOP"]
 ## Guide arrow placement: above the bus for the outside views; in the driver view it sits
@@ -64,6 +74,9 @@ var red_lights := 0
 var comfort := 100.0
 var harsh_brakes := 0
 var sharp_turns := 0
+## Corners taken with / without the turn indicator (see _update_turn_signals).
+var signalled_turns := 0
+var unsignalled_turns := 0
 ## Turn-by-turn guidance along the route polyline (next corner / stop, off-route detection).
 var guide := RouteGuide.new()
 var guidance: Dictionary = {}
@@ -83,6 +96,10 @@ var _bus_intersection := TrafficSignals.NO_NODE   # crossing the bus's front bum
 var _harsh_timer := 0.0                 # how long the current harsh manoeuvre has lasted
 var _harsh_reported := false            # the current manoeuvre has been counted
 var _comfort_msg_timer := 0.0
+var _turn_yaw := 0.0                    # heading turned in the current manoeuvre (rad, + = right)
+var _turn_counter := 0.0                # yaw against it (a correction, or the start of a new turn)
+var _turn_judged := false               # the current manoeuvre has been scored
+var _straight_time := 0.0
 
 
 func _ready() -> void:
@@ -115,6 +132,7 @@ func _ready() -> void:
 	hud.touch_controls.horn_pressed.connect(func() -> void: bus.honk())
 	hud.touch_controls.doors_pressed.connect(_on_doors_button)
 	hud.touch_controls.camera_pressed.connect(_on_camera_button)
+	hud.touch_controls.indicator_pressed.connect(_on_indicator_button)
 	hud.touch_controls.pause_pressed.connect(_on_pause_pressed)
 	pause_menu.resume_requested.connect(_resume)
 	pause_menu.restart_requested.connect(_restart)
@@ -243,6 +261,7 @@ func _physics_process(delta: float) -> void:
 	_update_guide_arrow(delta)
 	_check_red_light()
 	_update_comfort(delta)
+	_update_turn_signals(delta)
 
 
 func _process(delta: float) -> void:
@@ -250,6 +269,7 @@ func _process(delta: float) -> void:
 		return
 	var target := _current_target_position()
 	hud.set_speed(bus.speed_kmh(), speed_limit, bus.reverse_gear or bus.speed < -0.05, bus.doors_open)
+	hud.set_indicator(bus.indicator, bus.indicator_lit)
 	hud.minimap.current_stop_index = current_stop
 	_update_signal_hud()
 	if state == State.FINISHED or state == State.COUNTDOWN:
@@ -358,6 +378,65 @@ func _update_comfort(delta: float) -> void:
 	hud.show_message(tr("MSG_HARSH_BRAKE" if kind == Harsh.BRAKE else "MSG_SHARP_TURN"), 1.8, Color(1.0, 0.75, 0.45))
 	AudioSynth.play("squeal", -9.0, randf_range(0.95, 1.05) if kind == Harsh.BRAKE else randf_range(1.08, 1.18))
 	GameState.vibrate(35)
+
+
+# ---------------------------------------------------------------- turn signals
+func _on_indicator_button(side: int) -> void:
+	if state == State.FINISHED or state == State.COUNTDOWN:
+		return
+	bus.toggle_indicator(side)
+
+
+## Judges every corner once. The heading turned in the current manoeuvre is summed from the
+## bus's yaw rate while it drives forwards (so teleports and collisions do not count as
+## turns); a small wiggle of the wheel is absorbed, more than SIGNAL_COUNTER_YAW against the
+## turn starts a new manoeuvre, and a second of straight driving (or standing still) ends
+## it. At SIGNAL_TURN_YAW the indicator is checked: on for that side - or switched off less
+## than SIGNAL_GRACE ago, since the stalk cancels itself after the turn - earns SIGNAL_BONUS,
+## a missing or wrong indicator costs SIGNAL_PENALTY.
+func _update_turn_signals(delta: float) -> void:
+	if state != State.DRIVING:
+		_reset_turn()
+		return
+	if bus.speed <= 1.0 or absf(bus.steer_angle) < SIGNAL_STRAIGHT_STEER:
+		_straight_time += delta
+		if _straight_time >= SIGNAL_STRAIGHT_TIME:
+			_reset_turn()
+		return
+	_straight_time = 0.0
+	var yaw := bus.yaw_rate() * delta   # positive = right
+	if _turn_yaw == 0.0 or signf(yaw) == signf(_turn_yaw):
+		_turn_yaw += yaw
+		_turn_counter = 0.0
+	else:
+		_turn_counter += absf(yaw)
+		if _turn_counter >= SIGNAL_COUNTER_YAW:
+			_turn_yaw = signf(yaw) * _turn_counter
+			_turn_counter = 0.0
+			_turn_judged = false
+	if _turn_judged or absf(_turn_yaw) < SIGNAL_TURN_YAW:
+		return
+	_turn_judged = true
+	var side: int = Bus.Indicator.RIGHT if _turn_yaw > 0.0 else Bus.Indicator.LEFT
+	var recently_off: bool = bus.indicator == Bus.Indicator.NONE and bus.last_indicator == side and bus.indicator_off_time < SIGNAL_GRACE
+	if bus.indicator == side or recently_off:
+		signalled_turns += 1
+		score += SIGNAL_BONUS
+		hud.show_message(tr("MSG_SIGNALLED_TURN") % SIGNAL_BONUS, 1.5, Color(0.6, 1.0, 0.7))
+		AudioSynth.play("coin", -12.0, 1.3)
+	else:
+		unsignalled_turns += 1
+		score = maxi(0, score - SIGNAL_PENALTY)
+		hud.show_message(tr("MSG_NO_SIGNAL") % SIGNAL_PENALTY, 2.0, Color(1.0, 0.75, 0.45))
+		AudioSynth.play("fail", -10.0, 1.4)
+		GameState.vibrate(35)
+
+
+func _reset_turn() -> void:
+	_turn_yaw = 0.0
+	_turn_counter = 0.0
+	_turn_judged = false
+	_straight_time = 0.0
 
 
 ## Comfort bonus paid at the terminal: COMFORT_BONUS_MAX for a perfectly smooth ride, scaled
@@ -561,6 +640,7 @@ func _finish(success: bool, title_key: String) -> void:
 	_finish_started = true
 	state = State.FINISHED
 	bus.engine_on = false
+	bus.set_indicator(Bus.Indicator.NONE)
 	AudioSynth.stop_engine()
 	hud.touch_controls.release_all()
 	var time_bonus := int(time_left) * 5 if success else 0
@@ -603,6 +683,7 @@ func _finish(success: bool, title_key: String) -> void:
 		"perfect_stops": perfect_stops, "red_lights": red_lights,
 		"comfort": roundi(comfort), "comfort_bonus": comfort_pts,
 		"harsh_brakes": harsh_brakes, "sharp_turns": sharp_turns,
+		"signalled_turns": signalled_turns, "unsignalled_turns": unsignalled_turns,
 	}
 	await get_tree().create_timer(1.8).timeout
 	if is_inside_tree():

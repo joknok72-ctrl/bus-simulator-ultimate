@@ -10,6 +10,10 @@ const CAM_DRIVER := 1
 const CAM_TOP := 2
 const STATE_DRIVING := 1
 const STATE_WAIT_CLOSE := 3
+# Bus.Indicator sides (the Bus class is not named here: in -s mode it would be compiled before
+# the autoloads it depends on exist).
+const IND_LEFT := 1
+const IND_RIGHT := 2
 
 var _dir := ""
 
@@ -85,14 +89,18 @@ func _run() -> void:
 	game.camera_rig.set_mode(CAM_DRIVER)
 	await _frames(40)
 	await _shot("10_game_driver_camera")
-	# Steer into a turn (towards the road centre, away from the curb): the cockpit wheel turns,
-	# the body rolls and the view looks into the bend.
+	# Steer into a turn (towards the road centre, away from the curb) with the left indicator on:
+	# the cockpit wheel turns, the body rolls, the view looks into the bend and the tell-tales flash.
+	# The indicator goes on last: a fresh one lights at once, so the shot catches the lit phase.
 	game.hud.touch_controls.wheel.angle = deg_to_rad(-70.0)
 	game.hud.touch_controls.wheel.held = true
-	await _frames(40)
+	await _frames(38)
+	game.bus.set_indicator(IND_LEFT)
+	await _frames(2)
 	await _shot("13_game_driver_turning")
 	game.hud.touch_controls.wheel.held = false
 	game.hud.touch_controls.gas.release()
+	game.bus.set_indicator(0)
 	# Bus stop with open doors, seen from the driver's seat and from behind.
 	var stop = game.world.stops[0]
 	game.bus.stop_immediately()
@@ -124,6 +132,11 @@ func _run() -> void:
 	game.hud.touch_controls.gas.press()
 	await _frames(45)
 	await _shot("16_game_turn_guidance")
+	# Right indicator on for the corner ahead: amber lamps, the lit stalk button and the gauge tell-tale.
+	game.bus.set_indicator(IND_RIGHT)
+	await _frames(3)
+	await _shot("18_game_turn_indicator")
+	game.bus.set_indicator(0)
 	game.hud.touch_controls.gas.release()
 	# Damage smoke from the engine bay once the bus is badly hit.
 	game.bus.apply_damage(70.0)

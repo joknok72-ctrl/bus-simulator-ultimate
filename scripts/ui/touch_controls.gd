@@ -8,6 +8,8 @@ signal horn_pressed()
 signal doors_pressed()
 signal camera_pressed()
 signal pause_pressed()
+## Turn indicator stalk tapped: side is Bus.Indicator.LEFT or Bus.Indicator.RIGHT.
+signal indicator_pressed(side: int)
 
 @onready var wheel: SteeringWheel = $Wheel
 @onready var left_button: TouchButton = $LeftButton
@@ -18,6 +20,8 @@ signal pause_pressed()
 @onready var doors_button: TouchButton = $DoorsButton
 @onready var camera_button: TouchButton = $CameraButton
 @onready var pause_button: TouchButton = $PauseButton
+@onready var indicator_left: TouchButton = $IndicatorLeft
+@onready var indicator_right: TouchButton = $IndicatorRight
 @onready var tilt_hint: Label = $TiltHint
 
 var steer := 0.0
@@ -40,6 +44,8 @@ func _ready() -> void:
 	doors_button.tapped.connect(func() -> void: doors_pressed.emit())
 	camera_button.tapped.connect(func() -> void: camera_pressed.emit())
 	pause_button.tapped.connect(func() -> void: pause_pressed.emit())
+	indicator_left.tapped.connect(func() -> void: indicator_pressed.emit(Bus.Indicator.LEFT))
+	indicator_right.tapped.connect(func() -> void: indicator_pressed.emit(Bus.Indicator.RIGHT))
 	apply_control_mode(int(GameState.settings.control_mode))
 	GameState.settings_changed.connect(func() -> void: apply_control_mode(int(GameState.settings.control_mode)))
 
@@ -56,7 +62,7 @@ func apply_control_mode(mode: int) -> void:
 
 
 func _zones() -> Array:
-	var zones: Array = [gas, brake_pedal, horn_button, doors_button, camera_button, pause_button]
+	var zones: Array = [gas, brake_pedal, horn_button, doors_button, camera_button, pause_button, indicator_left, indicator_right]
 	if wheel.visible:
 		zones.append(wheel)
 	if left_button.visible:
@@ -166,5 +172,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		doors_pressed.emit()
 	elif event.is_action_pressed("toggle_camera"):
 		camera_pressed.emit()
+	elif event.is_action_pressed("indicator_left"):
+		indicator_pressed.emit(Bus.Indicator.LEFT)
+	elif event.is_action_pressed("indicator_right"):
+		indicator_pressed.emit(Bus.Indicator.RIGHT)
 	elif event.is_action_pressed("pause"):
 		pause_pressed.emit()
+
+
+## Mirrors the bus's indicator on the two stalk buttons (ring + blinking arrow).
+func set_indicator(side: int, lit: bool) -> void:
+	indicator_left.active = side == Bus.Indicator.LEFT
+	indicator_left.lit = indicator_left.active and lit
+	indicator_right.active = side == Bus.Indicator.RIGHT
+	indicator_right.lit = indicator_right.active and lit

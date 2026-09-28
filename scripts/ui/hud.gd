@@ -81,6 +81,14 @@ func set_stats(time_left: float, score: int, onboard: int, delivered: int, total
 	damage_bar.value = damage
 
 
+## Turn indicator state (Bus.Indicator side + whether the lamps are lit right now): shown on
+## the stalk buttons and as the green tell-tales of the speedometer.
+func set_indicator(side: int, lit: bool) -> void:
+	touch_controls.set_indicator(side, lit)
+	speedometer.indicator = side
+	speedometer.indicator_lit = lit
+
+
 ## Passenger comfort rating 0..100 (see Game._update_comfort).
 func set_comfort(value: float) -> void:
 	comfort_bar.value = value

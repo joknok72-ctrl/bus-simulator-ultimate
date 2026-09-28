@@ -182,6 +182,38 @@ script = ExtResource("4_button")
 icon = 6
 base_color = Color(0.15, 0.17, 0.22, 0.85)
 
+[node name="IndicatorLeft" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 64.0
+offset_top = -376.0
+offset_right = 136.0
+offset_bottom = -304.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 9
+base_color = Color(0.2, 0.22, 0.3, 0.9)
+accent_color = Color(1, 0.9, 0.7, 0.9)
+
+[node name="IndicatorRight" type="Control" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 188.0
+offset_top = -376.0
+offset_right = 260.0
+offset_bottom = -304.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+icon = 10
+base_color = Color(0.2, 0.22, 0.3, 0.9)
+accent_color = Color(1, 0.9, 0.7, 0.9)
+
 [node name="TiltHint" type="Label" parent="TouchControls"]
 visible = false
 layout_mode = 1
