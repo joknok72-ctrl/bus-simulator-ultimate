@@ -23,6 +23,7 @@ func _ready() -> void:
 	sounds["fail"] = _make_fail()
 	sounds["ding"] = _make_ding()
 	sounds["squeal"] = _make_squeal()
+	sounds["relay"] = _make_relay()
 	sounds["engine"] = _make_engine_loop()
 	for i in POOL_SIZE:
 		var p := AudioStreamPlayer.new()
@@ -230,6 +231,23 @@ func _make_squeal() -> AudioStreamWAV:
 		var noise := randf_range(-1.0, 1.0)
 		filtered += (noise - filtered) * 0.35
 		s[i] = (tone * 0.7 + filtered * 0.3) * 0.5 * _env(t, 0.04, 0.18, length)
+	return _wav_from_samples(s)
+
+
+## Indicator relay: the dry click of the flasher unit - a damped 2 kHz knock over a very
+## short burst of noise (60 ms), played on every change of the lamps.
+func _make_relay() -> AudioStreamWAV:
+	var length := 0.06
+	var n := int(RATE * length)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var filtered := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var noise := randf_range(-1.0, 1.0)
+		filtered += (noise - filtered) * 0.6
+		var knock := sin(TAU * 2100.0 * t) * exp(-t * 160.0)
+		s[i] = (knock * 0.7 + filtered * exp(-t * 220.0) * 0.5) * 0.7
 	return _wav_from_samples(s)
 
 

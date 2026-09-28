@@ -6,8 +6,14 @@ var speed_kmh := 0.0
 var speed_limit := 50
 var reversing := false
 var doors_open := false
+## Turn indicator tell-tales (Bus.Indicator side, lit = lamps currently on).
+var indicator := 0
+var indicator_lit := false
 var _display_speed := 0.0
 const MAX_KMH := 100.0
+const TELLTALE_ON := Color(0.35, 1.0, 0.45)
+const TELLTALE_DARK := Color(0.2, 0.5, 0.28, 0.75)
+const TELLTALE_OFF := Color(1, 1, 1, 0.14)
 
 
 func _ready() -> void:
@@ -58,5 +64,15 @@ func _draw() -> void:
 	var gear_col := Color(1.0, 0.6, 0.2) if reversing else (Color(0.9, 0.9, 0.9) if doors_open else Color(0.4, 0.9, 0.5))
 	draw_circle(Vector2(c.x, c.y + r * 0.62), 16.0, Color(0, 0, 0, 0.5))
 	draw_string(bold, Vector2(0, c.y + r * 0.62 + 8.0), gear, HORIZONTAL_ALIGNMENT_CENTER, size.x, 22, gear_col)
+	# Turn indicator tell-tales flanking the gear letter, green like a real cluster.
+	for side in [1, 2]:   # Bus.Indicator.LEFT, RIGHT
+		var d := -1.0 if side == 1 else 1.0
+		var tc := Vector2(c.x + d * 42.0, c.y + r * 0.62)
+		var col := TELLTALE_OFF
+		if indicator == side:
+			col = TELLTALE_ON if indicator_lit else TELLTALE_DARK
+		var s := 9.0
+		draw_colored_polygon(PackedVector2Array([tc + Vector2(d * s * 1.1, 0), tc + Vector2(d * s * 0.05, -s * 0.85), tc + Vector2(d * s * 0.05, s * 0.85)]), col)
+		draw_rect(Rect2(tc + Vector2(minf(d * s * 0.05, -d * s * 0.75), -s * 0.36), Vector2(s * 0.8, s * 0.72)), col)
 	if over_limit:
 		draw_arc(c, r + 4.0, 0.0, TAU, 48, Color(1.0, 0.3, 0.25, 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.01)), 3.0, true)

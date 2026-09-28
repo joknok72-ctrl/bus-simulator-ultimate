@@ -39,6 +39,9 @@ func show_results(result: Dictionary) -> void:
 	_add_row(tr("RESULT_PERFECT_STOPS"), "%d / %d" % [int(result.get("perfect_stops", 0)), int(result.get("stops_total", 0))])
 	_add_row(tr("RESULT_COLLISIONS"), str(int(result.get("collisions", 0))))
 	_add_row(tr("RESULT_RED_LIGHTS"), str(int(result.get("red_lights", 0))))
+	# Corners indicated correctly out of all corners taken.
+	var signalled := int(result.get("signalled_turns", 0))
+	_add_row(tr("RESULT_SIGNALLED_TURNS"), "%d / %d" % [signalled, signalled + int(result.get("unsignalled_turns", 0))])
 	# Rating and the bonus it earned on one line: the panel is already as tall as the screen.
 	_add_row(tr("RESULT_COMFORT"), "%d %%  (+%d)" % [int(result.get("comfort", 100)), int(result.get("comfort_bonus", 0))])
 	_add_row(tr("RESULT_TIME_BONUS"), "+%d" % int(result.get("time_bonus", 0)))
@@ -56,9 +59,9 @@ func show_results(result: Dictionary) -> void:
 	tween.tween_property($Panel, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## Nine rows have to fit between the stars and the buttons on a 720 px tall canvas, so the
+## Ten rows have to fit between the stars and the buttons on a 720 px tall canvas, so the
 ## detail rows are a little smaller than the default 24 px text.
-const ROW_FONT_SIZE := 22
+const ROW_FONT_SIZE := 20
 
 
 func _add_row(title: String, value: String, highlight: bool = false) -> void:

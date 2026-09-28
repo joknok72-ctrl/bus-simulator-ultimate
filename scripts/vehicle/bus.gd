@@ -9,6 +9,9 @@ extends CharacterBody3D
 signal collided(strength: float)
 signal doors_changed(open: bool)
 signal horn_sounded()
+signal indicator_changed(side: int)
+
+enum Indicator { NONE, LEFT, RIGHT }
 
 # --- tuning ---------------------------------------------------------------
 const MAX_SPEED := 22.0            # m/s (~80 km/h)
@@ -26,6 +29,17 @@ const STEER_RETURN_RATE := deg_to_rad(140.0)
 const WHEEL_RADIUS := 0.55
 const REVERSE_HOLD_TIME := 0.45
 const HAND_WHEEL_MAX := deg_to_rad(150.0)   # visual steering wheel rotation at full lock
+## Turn indicators: one flash every 0.8 s (75 a minute, the usual relay rate). Like a car's
+## stalk, the indicator cancels itself once the bus has turned INDICATOR_CANCEL_YAW towards
+## the indicated side and the steering has come back to (nearly) straight ahead.
+const INDICATOR_PERIOD := 0.8
+const INDICATOR_CANCEL_YAW := deg_to_rad(60.0)
+const INDICATOR_CANCEL_STEER := deg_to_rad(4.0)
+const INDICATOR_ON := Color(1.0, 0.62, 0.1)
+const INDICATOR_OFF := Color(0.5, 0.3, 0.08)
+const TELLTALE_ON := Color(0.15, 0.9, 0.35)   # green dashboard tell-tales, as on a real binnacle
+const TELLTALE_OFF := Color(0.06, 0.22, 0.1)
+const TELLTALE_GLOW := 1.2                     # gentler than the lamps (3.0) or the green would burn out to white
 
 # --- body geometry (bus-local metres) ----------------------------------------
 const LENGTH := 11.0
@@ -63,6 +77,13 @@ var night := false
 ## current turn (m/s², positive when turning right).
 var accel_long := 0.0
 var accel_lat := 0.0
+## Turn indicator (see set_indicator): which side is switched on, whether the lamps are lit in
+## the current flash, the side used last and for how long it has been off (the mission
+## controller judges corners against these, see Game._update_turn_signals).
+var indicator: int = Indicator.NONE
+var indicator_lit := false
+var last_indicator: int = Indicator.NONE
+var indicator_off_time := INF
 
 var _vertical_velocity := 0.0
 var _reverse_hold := 0.0
@@ -70,6 +91,9 @@ var _collision_cooldown := 0.0
 var _door_tween: Tween
 var _horn_cooldown := 0.0
 var _hand_wheel_spin := 0.0
+var _indicator_time := 0.0
+var _indicator_yaw := 0.0        # heading turned towards the indicated side since it was switched on
+var _indicator_turned := false   # ... has reached INDICATOR_CANCEL_YAW: cancel when the wheel straightens
 
 # --- visual nodes --------------------------------------------------------------
 var body_pivot: Node3D
@@ -80,6 +104,8 @@ var door_rear: Node3D
 var headlights: Array[SpotLight3D] = []
 var brake_light_mat: StandardMaterial3D
 var reverse_light_mat: StandardMaterial3D
+var indicator_mats: Array[StandardMaterial3D] = []   # [left, right] amber exterior lamps
+var telltale_mats: Array[StandardMaterial3D] = []    # [left, right] green cockpit tell-tales
 var hand_wheel: Node3D                    # cockpit steering wheel (rotates with input)
 var smoke: CPUParticles3D                 # engine-bay smoke, grows with damage
 var chase_mount: Node3D
@@ -116,6 +142,7 @@ func configure(color: Color, is_night: bool) -> void:
 	headlights.clear()
 	hand_wheel = null
 	_build_visual()
+	_apply_indicator_lamps()
 
 
 # ---------------------------------------------------------------- visuals
@@ -208,6 +235,27 @@ func _build_shell(body: MeshMerger, L: float, W: float, half_l: float, half_w: f
 	for x in [-0.9, 0.9]:
 		body.add_box(Vector3(0.4, 0.3, 0.06), Vector3(x, 1.3, half_l + 0.03), brake_light_mat)
 		body.add_box(Vector3(0.25, 0.18, 0.06), Vector3(x, 0.98, half_l + 0.03), reverse_light_mat)
+	# Turn indicators: amber lamps at the front and rear corners plus a repeater on each flank
+	# behind the front wheel arch. One shared material per side, so the whole side flashes
+	# together (see _apply_indicator_lamps); the green cockpit tell-tales get their own pair.
+	indicator_mats.clear()
+	telltale_mats.clear()
+	for side in [-1.0, 1.0]:
+		var lamp := StandardMaterial3D.new()
+		lamp.albedo_color = INDICATOR_OFF
+		lamp.emission_enabled = true
+		lamp.emission = INDICATOR_ON
+		lamp.emission_energy_multiplier = 0.0
+		indicator_mats.append(lamp)
+		var telltale := StandardMaterial3D.new()
+		telltale.albedo_color = TELLTALE_OFF
+		telltale.emission_enabled = true
+		telltale.emission = TELLTALE_ON
+		telltale.emission_energy_multiplier = 0.0
+		telltale_mats.append(telltale)
+		body.add_box(Vector3(0.14, 0.26, 0.06), Vector3(side * 1.15, 0.95, -half_l - 0.03), lamp)
+		body.add_box(Vector3(0.14, 0.3, 0.06), Vector3(side * 1.16, 1.3, half_l + 0.03), lamp)
+		body.add_box(Vector3(0.05, 0.12, 0.3), Vector3(side * (half_w + 0.01), 1.5, -half_l + 2.9), lamp)
 	# Mirrors on short arms.
 	for x in [-1.45, 1.45]:
 		var inward := 1.0 if x < 0 else -1.0
@@ -289,6 +337,12 @@ func _build_interior(body: MeshMerger, L: float, W: float, half_l: float, _half_
 	body.add_box(Vector3(0.46, 0.15, 0.14), binnacle_pos, interior_dark, binnacle_basis)
 	body.add_box(Vector3(0.38, 0.09, 0.02), binnacle_pos + binnacle_basis * Vector3(0, 0.0, 0.075),
 		MeshFactory.mat(Color(0.05, 0.09, 0.13), 0.3, 0.0, Color(0.3, 0.75, 1.0), 1.0 if night else 0.7), binnacle_basis)
+	# Green indicator tell-tales at either end of the display, raised a little off its face (the
+	# wheel rim hides the top edge of the binnacle from the driver's eye), flashing with the lamps.
+	if telltale_mats.size() == 2:
+		for i in 2:
+			var side := -1.0 if i == 0 else 1.0
+			body.add_box(Vector3(0.03, 0.05, 0.02), binnacle_pos + binnacle_basis * Vector3(side * 0.16, 0.0, 0.088), telltale_mats[i], binnacle_basis)
 	# Warm cabin light at night so the dashboard, wheel and seats are not pitch black.
 	if night:
 		var cabin_light := OmniLight3D.new()
@@ -516,11 +570,12 @@ func _physics_process(delta: float) -> void:
 		collided.emit(strength)
 	elif lost > 0.3:
 		speed = forward.dot(actual_flat)
+	_update_indicator(delta)
 	_update_visuals(delta, throttle, brake)
 
 
 ## Current yaw rate of the bus in rad/s (positive = turning right). Used by the camera
-## to look into turns.
+## to look into turns and to judge whether a corner was signalled.
 func yaw_rate() -> float:
 	if absf(speed) < 0.05:
 		return 0.0
@@ -587,6 +642,64 @@ func honk() -> void:
 	_horn_cooldown = 0.7
 	AudioSynth.play("horn", -2.0, randf_range(0.97, 1.03))
 	horn_sounded.emit()
+
+
+# ---------------------------------------------------------------- turn indicators
+## Switches the indicator to one side (Indicator.LEFT / RIGHT) or off (Indicator.NONE). A
+## fresh indicator lights up at once, so a tap right before the corner is never lost in
+## the dark half of the flash cycle.
+func set_indicator(side: int) -> void:
+	if side == indicator:
+		return
+	if indicator != Indicator.NONE:
+		last_indicator = indicator
+		indicator_off_time = 0.0
+	indicator = side
+	_indicator_time = 0.0
+	_indicator_yaw = 0.0
+	_indicator_turned = false
+	indicator_lit = indicator != Indicator.NONE
+	_apply_indicator_lamps()
+	AudioSynth.play("relay", -12.0, 1.0 if indicator_lit else 0.85)
+	indicator_changed.emit(indicator)
+
+
+## The stalk: the same side again switches the indicator off, the other side takes over.
+func toggle_indicator(side: int) -> void:
+	set_indicator(Indicator.NONE if indicator == side else side)
+
+
+func _apply_indicator_lamps() -> void:
+	for i in indicator_mats.size():
+		var side: int = Indicator.LEFT if i == 0 else Indicator.RIGHT
+		var on := indicator == side and indicator_lit
+		indicator_mats[i].albedo_color = INDICATOR_ON if on else INDICATOR_OFF
+		indicator_mats[i].emission_energy_multiplier = 3.0 if on else 0.0
+		if i < telltale_mats.size():
+			telltale_mats[i].albedo_color = TELLTALE_ON if on else TELLTALE_OFF
+			telltale_mats[i].emission_energy_multiplier = TELLTALE_GLOW if on else 0.0
+
+
+## Flashes the lamps at INDICATOR_PERIOD with a relay tick on every change, and cancels the
+## indicator after the turn: once the bus has turned INDICATOR_CANCEL_YAW towards the
+## indicated side (driving forwards) and the steering is back near straight ahead.
+func _update_indicator(delta: float) -> void:
+	indicator_off_time += delta
+	if indicator == Indicator.NONE:
+		return
+	_indicator_time += delta
+	var lit := fmod(_indicator_time, INDICATOR_PERIOD) < INDICATOR_PERIOD * 0.5
+	if lit != indicator_lit:
+		indicator_lit = lit
+		_apply_indicator_lamps()
+		AudioSynth.play("relay", -12.0, 1.0 if lit else 0.85)
+	if speed > 0.5:
+		var towards := 1.0 if indicator == Indicator.RIGHT else -1.0
+		_indicator_yaw = maxf(0.0, _indicator_yaw + yaw_rate() * delta * towards)
+		if _indicator_yaw >= INDICATOR_CANCEL_YAW:
+			_indicator_turned = true
+	if _indicator_turned and absf(steer_angle) < INDICATOR_CANCEL_STEER:
+		set_indicator(Indicator.NONE)
 
 
 func speed_kmh() -> float:

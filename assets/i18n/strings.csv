@@ -132,3 +132,7 @@ MSG_HARSH_BRAKE,Harsh braking! Passengers are upset,فرملة عنيفة! ال�
 MSG_SHARP_TURN,Too fast in the turn! Passengers are upset,انعطاف حاد! الركاب مستاؤون
 RESULT_COMFORT,Passenger comfort,راحة الركاب
 HOWTO_9,Drive smoothly with passengers on board: slow down early instead of braking hard and take corners slowly. A high comfort rating earns a bonus at the terminal.,قُد بسلاسة عندما يكون الركاب على متن الحافلة: خفّف السرعة مبكراً بدل الفرملة العنيفة وانعطف ببطء. تقييم الراحة العالي يمنحك مكافأة في المحطة النهائية.
+MSG_SIGNALLED_TURN,Indicated turn +%d,انعطاف مع الإشارة +%d
+MSG_NO_SIGNAL,No turn signal! -%d,لم تُشغّل إشارة الانعطاف! -%d
+RESULT_SIGNALLED_TURNS,Indicated turns,الانعطافات مع الإشارة
+HOWTO_10,Tap an amber arrow above the steering wheel (or press Z / X) before a corner to switch on the turn indicator; it cancels itself after the turn. Indicated corners earn points; corners without a signal cost points.,اضغط أحد السهمين الكهرمانيين فوق المقود (أو Z / X) قبل المنعطف لتشغيل إشارة الانعطاف؛ تنطفئ تلقائياً بعد المنعطف. الانعطاف مع الإشارة يمنحك نقاطاً؛ وبدونها تُخصم نقاط.
